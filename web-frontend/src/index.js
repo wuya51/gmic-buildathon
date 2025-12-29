@@ -4,8 +4,8 @@ import "./index.css";
 import "./App.css";
 import App from "./App";
 import { BrowserRouter, Route, Routes, useParams, useSearchParams } from "react-router-dom";
-import GraphQLProvider from "./GraphQLProvider";
-import { WalletProvider } from './WalletProvider';
+import GraphQLProvider from "./providers/GraphQLProvider";
+import { WalletProvider } from './providers';
 import { DynamicContextProvider } from '@dynamic-labs/sdk-react-core';
 import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 

@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useWallet, WalletConnector } from './WalletProvider';
+import { useWallet, WalletConnector } from './providers';
 import { DynamicConnectButton, useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import "./App.css";
-import GMOperations, { useGMAdditionalData, useLeaderboardData, useCooldownData, useUserData } from './GMOperations';
-import NotificationCenter from './NotificationCenter';
-import Leaderboard from './Leaderboard';
+import GMOperations, { useGMAdditionalData, useLeaderboardData, useCooldownData, useUserData } from './services/GMOperations';
+import NotificationCenter from './pages/NotificationCenter';
+import Leaderboard from './pages/Leaderboard';
 import GifPicker from './components/GifPicker';
 import EmojiPicker from './components/EmojiPicker';
 import ChatHistory from './components/ChatHistory';
 import UserProfile from './components/UserProfile';
+import { formatAccountOwner, formatAddressForDisplay, uploadToPinata, MAX_MESSAGE_LENGTH, WARNING_THRESHOLD } from './utils';
 
 const KeyboardIcon = ({ className = "" }) => (
   <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -49,67 +50,7 @@ window.onunhandledrejection = function(event) {
   return true;
 };
 
-const formatAccountOwner = (address) => {
-  if (!address) return '';
-  const cleanAddress = address.trim();
-  if (cleanAddress.startsWith('0x')) {
-    return cleanAddress.toLowerCase();
-  }
-  return `0x${cleanAddress.toLowerCase()}`;
-};
 
-const formatAddressForDisplay = (address, isMobile = false, startChars = 6, endChars = 4) => {
-    if (!address) return '';
-    const isMobileView = isMobile || window.innerWidth <= 768;
-    return isMobileView
-      ? `${address.slice(0, startChars)}...${address.slice(-endChars)}`
-      : address;
-  };
-
-const MAX_MESSAGE_LENGTH = 280;
-const WARNING_THRESHOLD = 250;
-
-const uploadToPinata = async (file, filename) => {
-  if (!file) return { success: false, error: 'No file provided' };
-  
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    if (filename) {
-      formData.append('filename', filename);
-    }
-    
-    const apiKey = import.meta.env.VITE_PINATA_API_KEY;
-    const secretApiKey = import.meta.env.VITE_PINATA_SECRET_API_KEY;
-    
-    const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-      method: 'POST',
-      headers: {
-        'pinata_api_key': apiKey,
-        'pinata_secret_api_key': secretApiKey,
-      },
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Pinata upload failed: ${response.statusText} - ${errorText}`);
-    }
-    
-    const result = await response.json();
-    
-    if (result.IpfsHash) {
-      const ipfsUrl = `https://salmon-main-vole-335.mypinata.cloud/ipfs/${result.IpfsHash}`;
-      return { success: true, url: ipfsUrl };
-    } else {
-      throw new Error('No IPFS hash returned from Pinata');
-    }
-  } catch (error) {
-    console.error('Upload to Pinata error:', error);
-    return { success: false, error: error.message };
-  }
-};
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -560,75 +501,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     }
   };
 
-  const uploadToPinata = async (audioBlob, filename) => {
-    try {
 
-      const PINATA_API_KEY = import.meta.env.VITE_PINATA_API_KEY;
-      const PINATA_SECRET_API_KEY = import.meta.env.VITE_PINATA_SECRET_API_KEY;
-      
-      if (!PINATA_API_KEY || !PINATA_SECRET_API_KEY) {
-        throw new Error('Pinata API keys missing in environment variables');
-      }
-
-      const formData = new FormData();
-      formData.append('file', audioBlob, filename);
-
-      const metadata = JSON.stringify({
-        name: filename,
-        keyvalues: {
-          app: 'gmic-buildathon',
-          type: 'voice-message',
-          timestamp: Date.now()
-        }
-      });
-      formData.append('pinataMetadata', metadata);
-
-
-      
-      const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-        method: 'POST',
-        headers: {
-          'pinata_api_key': PINATA_API_KEY,
-          'pinata_secret_api_key': PINATA_SECRET_API_KEY
-        },
-        body: formData
-      });
-
-
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        throw new Error(`Pinata upload failed: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.IpfsHash) {
-
-      } else {
-        throw new Error('Upload failed - no IPFS hash in response');
-      }
-      
-      const gatewayUrl = `https://salmon-main-vole-335.mypinata.cloud/ipfs/${result.IpfsHash}`;
-
-  
-      return { 
-        success: true, 
-        data: result,
-        cid: result.IpfsHash, 
-        url: gatewayUrl 
-      };
-
-    } catch (error) {
-      setVoicePopupText('Upload failed');
-      setVoicePopupType('error');
-      setShowVoicePopup(true);
-      setTimeout(() => setShowVoicePopup(false), 3000);
-      
-      throw error;
-    }
-  };
 
   const saveVoiceToServer = async (audioChunks, filename) => {
     try {
@@ -1544,6 +1417,21 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     }
   }, [showHistoryDropdown, currentAccount, gmOps]);
   
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showContactList && 
+          !event.target.closest('.contact-selector') && 
+          !event.target.closest('.contact-dropdown')) {
+        setShowContactList(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showContactList]);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (showHistoryDropdown && 
@@ -2728,10 +2616,23 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                 </div>
 
                 <div className="card send-action-card">
-                  {currentChatPartner && (
-                    <div className="selected-recipient">
-                      <span className="recipient-label">To:</span>
-                      <span className="recipient-address">{formatAddressForDisplay(currentChatPartner, isMobile, 6, 4)}</span>
+                  <div className="selected-recipient">
+                    <span className="recipient-label">To:</span>
+                    {currentChatPartner ? (
+                      <>
+                        <span className="recipient-avatar">👤</span>
+                        <span className="recipient-address">{formatAddressForDisplay(currentChatPartner, isMobile, 6, 4)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="recipient-avatar">🤖</span>
+                        <span className="recipient-info">
+                          <span className="recipient-name">GMIC</span>
+                          <span className="recipient-address">({formatAddressForDisplay(import.meta.env.VITE_OWNER_ID, isMobile, 6, 4)})</span>
+                        </span>
+                      </>
+                    )}
+                    {currentChatPartner && (
                       <button 
                         className="clear-recipient-btn"
                         onClick={() => handleChatPartnerChange(null)}
@@ -2739,8 +2640,8 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                       >
                         ✕
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   <div className="send-actions">
                     <div className="send-button-container">
@@ -2806,10 +2707,6 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                               setMessageInputFocused(true);
                             }}
                             onBlur={(e) => {
-                              if (e.relatedTarget && e.relatedTarget.className && 
-                                  e.relatedTarget.className.includes('send-message-button')) {
-                                return;
-                              }
                               setMessageInputFocused(false);
                             }}
                             onKeyDown={(e) => {
@@ -2966,44 +2863,56 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                       )}
                       
                       <div className="message-buttons">
-                        <button 
-                          className="emoji-picker-button"
-                          onClick={() => {
-                            setShowEmojiPicker(!showEmojiPicker);
-                            setShowGifPicker(false);
-                          }}
-                          disabled={isButtonDisabled(operationStatus, currentAccount, gmOps, cooldownRemaining, localCooldownEnabled, currentIsConnected)}
-                          title="Add emoji"
-                        >
-                          😊
-                        </button>
-                        <button 
-                          className={`send-message-button ${messageInputFocused ? 'send-mode' : 'gif-mode'}`}
-                          onClick={() => {
-
-                            if (messageInputFocused && !isSendingMessage) {
-
-                              handleSendGM("text");
-                            } else {
-                              setShowGifPicker(!showGifPicker);
-                              setShowEmojiPicker(false);
-                            }
-                          }}
-                          disabled={isButtonDisabled(operationStatus, currentAccount, gmOps, cooldownRemaining, localCooldownEnabled, currentIsConnected) || isSendingMessage}
-                          title={messageInputFocused ? "Send message" : "Add GIF"}
-                        >
-                            {messageInputFocused ? (
-                              operationStatus === "processing" ? (
-                                <span className="button-loading">
-                                  <span className="spinner">⏳</span>
-                                </span>
-                              ) : !currentIsConnected ? (
-                                <span>🔒 Send</span>
-                              ) : (
-                                "Send"
-                              )
-                            ) : "GIF"}
+                        <div className="emoji-gif-buttons">
+                          <button 
+                            className="emoji-picker-button"
+                            onClick={() => {
+                              setShowEmojiPicker(!showEmojiPicker);
+                              setShowGifPicker(false);
+                            }}
+                            disabled={isButtonDisabled(operationStatus, currentAccount, gmOps, cooldownRemaining, localCooldownEnabled, currentIsConnected)}
+                            title="Add emoji"
+                          >
+                            😊
                           </button>
+                          
+                          <button 
+                            className="gif-picker-button"
+                            onClick={() => {
+                              if (!isSendingMessage) {
+                                setShowGifPicker(!showGifPicker);
+                                setShowEmojiPicker(false);
+                              }
+                            }}
+                            disabled={isButtonDisabled(operationStatus, currentAccount, gmOps, cooldownRemaining, localCooldownEnabled, currentIsConnected) || isSendingMessage}
+                            title="Add GIF"
+                          >
+                            GIF
+                          </button>
+                        </div>
+              
+                        {!showGifPicker && (
+                          <button 
+                            className="send-message-button send-mode"
+                            onClick={() => {
+                              if (!isSendingMessage) {
+                                handleSendGM("text");
+                              }
+                            }}
+                            disabled={isButtonDisabled(operationStatus, currentAccount, gmOps, cooldownRemaining, localCooldownEnabled, currentIsConnected) || isSendingMessage}
+                            title="Send message"
+                          >
+                            {operationStatus === "processing" ? (
+                              <span className="button-loading">
+                                <span className="spinner">⏳</span>
+                              </span>
+                            ) : !currentIsConnected ? (
+                              <span>🔒 Send</span>
+                            ) : (
+                              "Send"
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>                             

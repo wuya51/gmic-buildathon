@@ -122,17 +122,24 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
       const streamEvents = Array.isArray(gmOps.streamEventsData) ? gmOps.streamEventsData : [];
       
       let gmEvents, receivedGmEvents;
-      if (currentChatPartner) {
-        const mySentEvents = Array.isArray(gmOps.mySentEventsData) ? gmOps.mySentEventsData : [];
-        const partnerSentEvents = Array.isArray(gmOps.partnerSentEventsData) ? gmOps.partnerSentEventsData : [];
-        const myReceivedEvents = Array.isArray(gmOps.myReceivedEventsData) ? gmOps.myReceivedEventsData : [];
-        const partnerReceivedEvents = Array.isArray(gmOps.partnerReceivedEventsData) ? gmOps.partnerReceivedEventsData : [];
-        
-        gmEvents = [...mySentEvents, ...partnerReceivedEvents];
-        receivedGmEvents = [...partnerSentEvents, ...myReceivedEvents];
+      const mySentEvents = Array.isArray(gmOps.mySentEventsData) ? gmOps.mySentEventsData : [];
+      const partnerSentEvents = Array.isArray(gmOps.partnerSentEventsData) ? gmOps.partnerSentEventsData : [];
+      const myReceivedEvents = Array.isArray(gmOps.myReceivedEventsData) ? gmOps.myReceivedEventsData : [];
+      const partnerReceivedEvents = Array.isArray(gmOps.partnerReceivedEventsData) ? gmOps.partnerReceivedEventsData : [];
+      if (!currentChatPartner) {
+        gmEvents = [...mySentEvents, ...partnerSentEvents];
+        receivedGmEvents = [...myReceivedEvents, ...partnerReceivedEvents];
       } else {
-        gmEvents = Array.isArray(gmOps.gmEventsData) ? gmOps.gmEventsData : [];
-        receivedGmEvents = Array.isArray(gmOps.receivedGmEventsData) ? gmOps.receivedGmEventsData : [];
+        const detailedGmEvents = [...mySentEvents, ...partnerReceivedEvents];
+        const detailedReceivedGmEvents = [...partnerSentEvents, ...myReceivedEvents];
+        
+        if (detailedGmEvents.length > 0 || detailedReceivedGmEvents.length > 0) {
+          gmEvents = detailedGmEvents;
+          receivedGmEvents = detailedReceivedGmEvents;
+        } else {
+          gmEvents = Array.isArray(gmOps.gmEventsData) ? gmOps.gmEventsData : [];
+          receivedGmEvents = Array.isArray(gmOps.receivedGmEventsData) ? gmOps.receivedGmEventsData : [];
+        }
       }
       
       const allEvents = [...streamEvents, ...gmEvents, ...receivedGmEvents];
@@ -439,6 +446,12 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
               if (address === '0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959') {
                 return { name: 'wuya51', avatar: '👤' };
               }
+              
+              const contractAddress = import.meta.env.VITE_OWNER_ID;
+              if (address === contractAddress) {
+                return { name: 'GMIC', avatar: '🤖' };
+              }
+              
               return { name: '', avatar: '👤' };
             };
             
