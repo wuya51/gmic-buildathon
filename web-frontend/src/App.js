@@ -114,11 +114,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     }
     try {
       const defaultContacts = {
-        '0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959': {
-          name: 'wuya51',
-          avatar: '👤'
-        },
-        [import.meta.env.VITE_OWNER_ID]: {
+        [import.meta.env.VITE_APP_ID]: {
           name: 'GMIC',
           avatar: '🤖'
         }
@@ -2627,9 +2623,9 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                       <>
                         <span className="recipient-avatar">🤖</span>
                         <span className="recipient-info">
-                          <span className="recipient-name">GMIC</span>
-                          <span className="recipient-address">({formatAddressForDisplay(import.meta.env.VITE_OWNER_ID, isMobile, 6, 4)})</span>
-                        </span>
+                            <span className="recipient-name">GMIC Bot </span>
+                            <span className="recipient-address">(Default Receiver)</span>
+                          </span>
                       </>
                     )}
                     {currentChatPartner && (
@@ -2778,22 +2774,22 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                                   <div 
                                     className="contact-item"
                                     onClick={() => {
-                                      const gmicAddress = import.meta.env.VITE_OWNER_ID;
+                                      const gmicAddress = import.meta.env.VITE_APP_ID;
 
                                       if (currentAccount && currentAccount.toLowerCase() === gmicAddress.toLowerCase()) {
                                         addNotification('Cannot send GMicrochains to yourself', 'error');
                                         setShowContactList(false);
                                         return;
                                       }
-                                      setRecipientAddress(gmicAddress);
-                                      setCurrentChatPartner(gmicAddress);
+                                      setRecipientAddress(formatAccountOwner(gmicAddress));
+                                      setCurrentChatPartner(formatAccountOwner(gmicAddress));
                                       setShowContactList(false);
 
                                     }}
                                   >
                                     <span className="contact-avatar">🤖</span>
                                     <span className="contact-name">GMIC</span>
-                                    <span className="contact-address">{import.meta.env.VITE_OWNER_ID.substring(0, 6)}...{import.meta.env.VITE_OWNER_ID.substring(import.meta.env.VITE_OWNER_ID.length - 4)}</span>
+                                    <span className="contact-address">{formatAddressForDisplay(formatAccountOwner(import.meta.env.VITE_APP_ID), isMobile, 6, 4)}</span>
                                   </div>
                                   <div className="contact-item set-recipient-input">
                                     <input

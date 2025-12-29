@@ -91,9 +91,9 @@ root.render(
 
 function DefaultGraphQLApp() {
   // Read configuration parameters from environment variables
-  const CHAIN_ID = import.meta.env.VITE_CHAIN_ID || "9bfde0d7516716607d52f2c18a0aadcbf58ef6c4543a4dce68625d669e7a7e9d";
-  const APP_ID = import.meta.env.VITE_APP_ID || "e8cba958bd6cc630678d12986534dc84f3a529171353621c4644a49d284e69b4";
-  const OWNER_ID = import.meta.env.VITE_OWNER_ID || "0x215115530daaada3b012212ac2472e3c3cbcfaa0149a8bfa59e051005cbeb851";
+  const CHAIN_ID = import.meta.env.VITE_CHAIN_ID;
+  const APP_ID = import.meta.env.VITE_APP_ID;
+  const OWNER_ID = import.meta.env.VITE_OWNER_ID;
   const PORT = import.meta.env.VITE_PORT || "8080";
 
   const HOST = import.meta.env.VITE_HOST || "gmic.top";

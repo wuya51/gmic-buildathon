@@ -83,8 +83,8 @@ echo "Publishing modules..."
 MODULE_ID=$(linera publish-module \
     examples/target/wasm32-unknown-unknown/release/gm_{contract,service}.wasm)
 
-# Create application on specified chain, using OWNER as initial owner
-APP_ID=$(linera create-application "$MODULE_ID" "$CHAIN" --json-argument "{\"owner\":\"$OWNER\"}")
+# Create application on specified chain
+APP_ID=$(linera create-application "$MODULE_ID" "$CHAIN")
 
 # Save CHAIN_ID and APP_ID to .env file for frontend use
 ENV_FILE="$SCRIPT_DIR/web-frontend/.env"

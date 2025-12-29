@@ -63,6 +63,7 @@ pub enum GmOperation {
     ClaimInvitationRewards { sender: AccountOwner },
     SetCooldownEnabled { enabled: bool },
     SetUserProfile { user: AccountOwner, name: Option<String>, avatar: Option<String> },
+    AIChat { sender: AccountOwner, recipient: AccountOwner, prompt: String, max_tokens: Option<u32> },
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, async_graphql::SimpleObject)]

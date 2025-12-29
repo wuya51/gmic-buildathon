@@ -38,22 +38,24 @@ impl Contract for GmContract {
     }
 
     async fn instantiate(&mut self, argument: Self::InstantiationArgument) {
+        log::info!("Contract instantiate called with argument: {}", argument);
+        
         let mut state = self.state.lock().await;
         if state.owner.get().is_some() {
+            log::info!("Contract already has an owner, skipping initialization");
             return;
         }
-        
-        if let Some(owner_value) = argument.get("owner") {
-            if let Ok(owner) = serde_json::from_value::<AccountOwner>(owner_value.clone()) {
-                let _ = state.set_owner(owner).await;
-            }
-        }
+
+        let contract_address: AccountOwner = self.runtime.application_id().into();
+        let _ = state.set_owner(contract_address).await;
+        log::info!("Contract owner set to contract address: {}", contract_address);
         
         let chain_id = self.runtime.chain_id();
         let application_id = self.runtime.application_id().forget_abi();
         let stream_name = StreamName::from("gm_events");
         
         self.runtime.subscribe_to_events(chain_id, application_id, stream_name);
+        log::info!("Contract initialization completed");
     }
 
     async fn execute_operation(&mut self, operation: GmOperation) {
@@ -67,6 +69,7 @@ impl Contract for GmContract {
             GmOperation::Gm { sender, recipient: _, content: _, inviter: _ } => sender.clone(),
             GmOperation::ClaimInvitationRewards { sender } => sender.clone(),
             GmOperation::SetUserProfile { user, .. } => user.clone(),
+            GmOperation::AIChat { sender, .. } => sender.clone(),
         };
         
         let chain_id = self.runtime.chain_id();
@@ -89,6 +92,28 @@ impl Contract for GmContract {
                     log::info!("User profile set successfully for user: {}", user);
                 }
             }
+            GmOperation::AIChat { sender: _, recipient, prompt, max_tokens } => {
+                log::info!("AI Chat triggered from {} to {} with prompt: {}", sender, recipient, prompt);
+        
+                let ai_response = Self::generate_ai_response(&prompt, max_tokens.unwrap_or(200)).await;
+                
+                let ai_content = MessageContent {
+                    message_type: "text".to_string(),
+                    content: ai_response,
+                };
+                
+                if let Err(e) = state.record_gm(chain_id, sender, Some(recipient.clone()), timestamp, ai_content.clone(), None).await {
+                    log::error!("Failed to record AI chat event from sender {}: {:?}", sender, e);
+                    return;
+                }
+                
+                let event_id = self.runtime.emit(
+                    StreamName::from("gm_events"),
+                    &GmMessage::Gm { sender, recipient: Some(recipient), timestamp, content: ai_content.clone() },
+                );
+                
+                log::info!("AI Chat event emitted successfully for sender: {}, recipient: {}, event_id: {}", sender, recipient, event_id);
+            }
             GmOperation::Gm { sender: _, recipient, content, inviter } => {
                 if !Self::is_message_content_valid(&content) {
                     log::warn!("Invalid message content from sender: {}, type: {}", sender, content.message_type);
@@ -107,17 +132,51 @@ impl Contract for GmContract {
                     return;
                 }
                 
-                if let Err(e) = state.record_gm(chain_id, sender, Some(recipient.clone()), timestamp, content.clone(), inviter).await {
-                    log::error!("Failed to record GM event from sender {}: {:?}", sender, e);
-                    return;
+                let contract_address = self.runtime.application_id().into();
+                if recipient == contract_address {
+                    log::info!("Auto-reply triggered: message sent to contract address from {}", sender);
+                    
+                    let ai_response = Self::generate_ai_response(&content.content, 200).await;
+                    
+                    let ai_content = MessageContent {
+                        message_type: "text".to_string(),
+                        content: ai_response,
+                    };
+                    
+                    if let Err(e) = state.record_gm(chain_id, sender, Some(recipient.clone()), timestamp, content.clone(), inviter).await {
+                        log::error!("Failed to record original GM event from sender {}: {:?}", sender, e);
+                        return;
+                    }
+                    
+                    if let Err(e) = state.record_gm(chain_id, contract_address, Some(sender.clone()), timestamp, ai_content.clone(), None).await {
+                        log::error!("Failed to record AI reply event: {:?}", e);
+                        return;
+                    }
+
+                    let original_event_id = self.runtime.emit(
+                        StreamName::from("gm_events"),
+                        &GmMessage::Gm { sender, recipient: Some(recipient.clone()), timestamp, content: content.clone() },
+                    );
+                    
+                    let ai_event_id = self.runtime.emit(
+                        StreamName::from("gm_events"),
+                        &GmMessage::Gm { sender: contract_address, recipient: Some(sender), timestamp, content: ai_content.clone() },
+                    );
+                    
+                    log::info!("Auto-reply completed: original event_id: {}, AI reply event_id: {}", original_event_id, ai_event_id);
+                } else {
+                    if let Err(e) = state.record_gm(chain_id, sender, Some(recipient.clone()), timestamp, content.clone(), inviter).await {
+                        log::error!("Failed to record GM event from sender {}: {:?}", sender, e);
+                        return;
+                    }
+                    
+                    let event_id = self.runtime.emit(
+                        StreamName::from("gm_events"),
+                        &GmMessage::Gm { sender, recipient: Some(recipient), timestamp, content: content.clone() },
+                    );
+                    
+                    log::info!("GM event emitted successfully for sender: {}, recipient: {}, event_id: {}", sender, recipient, event_id);
                 }
-                
-                let event_id = self.runtime.emit(
-                    StreamName::from("gm_events"),
-                    &GmMessage::Gm { sender, recipient: Some(recipient), timestamp, content: content.clone() },
-                );
-                
-                log::info!("GM event emitted successfully for sender: {}, recipient: {}, event_id: {}", sender, recipient, event_id);
             }
             GmOperation::ClaimInvitationRewards { sender } => {
                 match state.get_user_invitation_rewards(sender.clone()).await {
@@ -207,6 +266,10 @@ impl GmContract {
         }
         
         if content.is_text() {
+            if content.content.is_empty() {
+                return true;
+            }
+            
             if content.content.len() > 280 {
                 return false;
             }
@@ -273,6 +336,20 @@ impl GmContract {
                     }
                 }
             }
+        }
+    }
+}
+
+impl GmContract {
+
+    async fn generate_ai_response(prompt: &str, max_tokens: u32) -> String {
+        log::info!("Generating AI response for prompt: {}, max_tokens: {}", prompt, max_tokens);
+        let response = "🤖 GMIC Guide:\n📝 Send: Text/GIF/Voice messages\n💬 Chats: View conversation history\n👤 Profile: Set personal info & avatar\n🏆 Leaderboard: Active user rankings\n👥 Invite: Friends earn rewards💰".to_string();
+
+        if response.len() > max_tokens as usize {
+            response.chars().take(max_tokens as usize).collect()
+        } else {
+            response
         }
     }
 }

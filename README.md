@@ -1,20 +1,18 @@
 # GMIC Buildathon Project
 
-A decentralized cross-chain social messaging application built on the Linera blockchain platform, featuring advanced messaging capabilities, user profiles, and comprehensive analytics.
+A decentralized Microchains social messaging application built on Linera GMicrochains.
 
 ## 🌟 Project Overview
 
-**GMIC (Good Morning Cross-chain)** is a fully-featured Web3 social application that enables users to send "GM" messages across different blockchain chains, track social statistics, participate in leaderboards, and manage their digital identity. The application combines the power of Linera's blockchain infrastructure with modern web technologies to deliver a seamless user experience.
+**GMIC (GM + Microchains)** enables users to send "GMicrochains" messages with social features and real-time updates.
 
-### Key Highlights
-- **Cross-chain messaging**: Send messages across different Linera chains
+### Key Features
+- **Microchains messaging**: Send GMicrochains messages
 - **Multi-format support**: Text, GIF, and voice messages
-- **User profiles**: Customizable usernames and avatars stored on-chain
-- **Social features**: Invitation system, leaderboards, and activity tracking
-- **Real-time updates**: GraphQL subscriptions for live message synchronization
-- **IPFS integration**: Decentralized storage for voice messages and avatars
-- **Mobile-first design**: Fully responsive interface optimized for all devices
-- **Security**: Message validation, XSS protection, and cooldown mechanisms
+- **User profiles**: Customizable usernames and avatars
+- **Social features**: Invitation system and leaderboards
+- **Real-time updates**: Live message synchronization
+- **Security**: Message validation and cooldown system
 
 ## 📋 Table of Contents
 
@@ -32,152 +30,39 @@ A decentralized cross-chain social messaging application built on the Linera blo
 
 ### Technology Stack
 
-**Backend (Smart Contract)**
-- **Language**: Rust
-- **Platform**: Linera SDK
-- **State Management**: Linera Views (MapView, RegisterView)
-- **API**: GraphQL with async-graphql
-- **Message Types**: Text, GIF, Voice
-- **Storage**: On-chain state + IPFS for large files
-
-**Frontend**
-- **Framework**: React 18
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS + Custom CSS
-- **State Management**: React Hooks (useState, useEffect, useCallback)
-- **Wallet Integration**: Dynamic Labs SDK
-- **GraphQL Client**: Apollo Client
-- **IPFS**: Pinata Cloud
-- **Web3 Libraries**: ethers.js, viem, web3.js
+**Backend**: Rust + Linera SDK with GraphQL API
+**Frontend**: React + Vite with Tailwind CSS
+**Storage**: On-chain state + IPFS for large files
+**State Management**: Linera Views (MapView, RegisterView)
 
 ### System Components
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      User Interface                         │
-│  (React 18 + Vite + Tailwind CSS)                          │
-├─────────────────────────────────────────────────────────────┤
-│  - Wallet Connection (Dynamic Labs)                         │
-│  - Message Composition (Text/GIF/Voice)                     │
-│  - Contact Selector & User Profile                          │
-│  - Leaderboard & Statistics                                │
-│  - Real-time Notifications                                  │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    GraphQL API Layer                        │
-│  (async-graphql + Apollo Client)                           │
-├─────────────────────────────────────────────────────────────┤
-│  - Queries: Get messages, stats, profiles                   │
-│  - Mutations: Send GM, update profile                       │
-│  - Subscriptions: Real-time message updates                │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                  Linera Smart Contract                      │
-│  (Rust + Linera SDK)                                        │
-├─────────────────────────────────────────────────────────────┤
-│  - Contract: Execute operations, emit events               │
-│  - Service: GraphQL query handling                          │
-│  - State: User data, messages, statistics                  │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│              Storage Layer                                  │
-├─────────────────────────────────────────────────────────────┤
-│  - On-chain: Messages, profiles, statistics                │
-│  - IPFS: Voice messages, avatars, GIFs                      │
-└─────────────────────────────────────────────────────────────┘
-```
+- **UI Layer**: Message composition, user profiles, leaderboards
+- **GraphQL API**: Queries, mutations, and real-time subscriptions
+- **Smart Contract**: Message handling and state management
+- **Storage**: On-chain data + IPFS for media files
 
 ## ✨ Features
 
-### Core Messaging Features
+### Messaging
+- **Multi-format**: Text, GIF, and voice messages
+- **Cross-chain**: Send messages across Linera chains
+- **Security**: Content validation and XSS protection
+- **Cooldown**: 24-hour limit with whitelist bypass
 
-#### 📝 Multi-Format Messaging
-- **Text Messages**: Up to 280 characters with content validation
-- **GIF Messages**: Support for GIF URLs with automatic preview
-- **Voice Messages**: Record and send audio clips via IPFS
-  - MediaRecorder API for audio capture
-  - Automatic upload to Pinata IPFS
-  - Visual waveform display
-  - Duration tracking and progress indicators
-
-#### 🔒 Security & Validation
-- **XSS Protection**: Script tag filtering and sanitization
-- **Content Moderation**: Sensitive word detection and filtering
-- **Message Length Limits**: Text (280 chars), GIF/Voice (500 chars)
-- **URL Validation**: HTTPS requirement for external content
-- **Self-Messaging Prevention**: Blocks sending messages to self
-
-#### ⏱️ Cooldown System
-- **24-Hour Cooldown**: Configurable cooldown between messages
-- **Whitelist System**: Bypass cooldown for trusted addresses
-- **Real-time Tracking**: Display remaining cooldown time
-- **Admin Controls**: Enable/disable cooldown system
-
-### User Profile Features
-
-#### 👤 Profile Management
-- **Custom Username**: Set and update display name
-- **Avatar Upload**: Upload custom avatar images to IPFS
-- **Profile Caching**: Local cache for improved performance
-- **Default Profiles**: Auto-generated profiles for new users
-
-#### 📊 User Statistics
-- **Message Count**: Total messages sent per user
-- **User Ranking**: Position in global leaderboard
-- **Activity Trends**: Daily, hourly, and monthly activity analysis
-- **Chain Activity**: Messages sent across different chains
+### User Profiles
+- **Customization**: Usernames and avatar uploads
+- **Statistics**: Message counts and activity tracking
+- **Leaderboards**: User and chain rankings
 
 ### Social Features
+- **Invitation System**: Referral rewards and tracking
+- **Real-time Updates**: Live message synchronization
+- **Message History**: Organized conversation view
 
-#### 🎉 Invitation System
-- **Referral Rewards**: Earn rewards for inviting new users
-  - 30 points for first-time invitees
-  - 10 points for each subsequent message from invitees
-- **Invitation Tracking**: Monitor invited users and rewards
-- **Invitation Leaderboard**: Top inviters ranking
-
-#### 🏆 Leaderboards
-- **User Leaderboard**: Top users by message count
-- **Chain Leaderboard**: Most active chains
-- **Invitation Leaderboard**: Top inviters by rewards
-- **Real-time Updates**: Live ranking updates
-
-#### 💬 Message History
-- **Sent Messages**: View all messages you've sent
-- **Received Messages**: View messages sent to you
-- **Chat History**: Organized conversation view
-- **Timestamp Tracking**: Precise message timestamps
-
-### Frontend Features
-
-#### 🎨 User Interface
-- **Modern Design**: Clean, intuitive interface
-- **Dark Mode**: Eye-friendly dark theme
-- **Responsive Layout**: Optimized for desktop, tablet, and mobile
-- **Smooth Animations**: Fluid transitions and interactions
-- **Emoji Picker**: Quick emoji insertion
-- **GIF Picker**: Browse and select GIFs from Giphy
-
-#### 🔔 Notifications
-- **Real-time Alerts**: Instant feedback for actions
-- **Error Messages**: Clear, user-friendly error descriptions
-- **Success Notifications**: Confirmation for successful operations
-- **Cooldown Reminders**: Notify when cooldown expires
-
-#### 💼 Wallet Integration
-- **Multi-Wallet Support**: Compatible with various Web3 wallets
-- **Dynamic Labs SDK**: Seamless wallet connection
-- **Address Validation**: Verify wallet addresses
-- **Chain Detection**: Auto-detect wallet chain
-
-#### 📱 Mobile Optimization
-- **Touch-Friendly**: Optimized for touch interactions
-- **Responsive Components**: Adaptive layout for all screen sizes
-- **Performance**: Fast loading and smooth scrolling
-- **Offline Support**: Basic offline functionality
+### Frontend
+- **Responsive Design**: Mobile-optimized interface
+- **Wallet Integration**: Multi-wallet support
+- **Notifications**: Real-time alerts and feedback
 
 ## 📁 Project Structure
 
@@ -230,9 +115,10 @@ gmic-buildathon/
 
 ### Installation
 
-1. **Clone the repository** (if not already done)
+1. **Clone the repository**
    ```bash
-   cd /path/to/linera-protocol/examples/gmic-buildathon
+   git clone https://github.com/wuya51/gmic-buildathon
+   cd gmic-buildathon
    ```
 
 2. **Make the run script executable**

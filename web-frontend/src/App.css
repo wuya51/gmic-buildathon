@@ -1150,6 +1150,22 @@ body {
   transform: scale(0.95);
 }
 
+.gif-picker-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #ccc;
+  transform: none;
+  box-shadow: none;
+}
+
+.gif-picker-button:disabled:hover {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #ccc;
+  transform: none;
+  box-shadow: none;
+}
+
 .message-buttons {
   position: relative;
   display: flex;
@@ -4339,6 +4355,26 @@ body {
   background-color: transparent;
   color: #3a80d2;
   border-radius: 50%;
+}
+
+.voice-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #ccc;
+  transform: none;
+  box-shadow: none;
+  border-color: #ccc;
+  color: #999;
+}
+
+.voice-toggle:disabled:hover {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #ccc;
+  transform: none;
+  box-shadow: none;
+  border-color: #ccc;
+  color: #999;
 }
 
 .send-button.voice-mode {

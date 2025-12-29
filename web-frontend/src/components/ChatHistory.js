@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatAccountOwner, formatAddressForDisplay } from '../utils/utils';
 
 const normalizeTimestamp = (timestamp) => {
   if (!timestamp) return Date.now();
@@ -21,6 +22,39 @@ const normalizeTimestamp = (timestamp) => {
   }
   
   return num;
+};
+
+const getContactInfo = (address, event = null, currentAccount = null, isMobile = false) => {
+  if (event) {
+    if (address === event.sender && event.senderName) {
+      return { 
+        name: event.senderName, 
+        avatar: event.senderAvatar || '👤' 
+      };
+    }
+    if (address === event.recipient && event.recipientName) {
+      return { 
+        name: event.recipientName, 
+        avatar: event.recipientAvatar || '👤' 
+      };
+    }
+  }
+  
+  if (address === '0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959') {
+    return { name: 'wuya51', avatar: '👤' };
+  }
+  
+  const contractAddress = import.meta.env.VITE_APP_ID;
+  
+  if (formatAccountOwner(address) === formatAccountOwner(contractAddress)) {
+    return { name: 'GMIC', avatar: '🤖' };
+  }
+  
+  if (address === currentAccount) {
+    return { name: 'Me', avatar: '👤' };
+  }
+  
+  return { name: '', avatar: '👤' };
 };
 
 const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = null, onChatPartnerChange, currentIsConnected }) => {
@@ -227,7 +261,7 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
     }
   }, [currentAccount, gmOps, currentIsConnected]);
 
-  const renderMessageContent = (message) => {
+  const renderMessageContent = (message, shouldTruncate = true) => {
     try {
       if (!message || typeof message !== 'object') {
                         return <span className="error-message">[Invalid message]</span>;
@@ -279,8 +313,22 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
       
       switch (messageType) {
         case 'text':
-          const displayText = content.length > 30 ? content.substring(0, 30) + '...' : content;
-          return <span className="text-message">{displayText}</span>;
+          if (shouldTruncate && content.length > 30) {
+            const displayText = content.substring(0, 30) + '...';
+            return <span className="text-message">{displayText}</span>;
+          } else {
+            const lines = content.split('\n');
+            return (
+              <div className="text-message">
+                {lines.map((line, index) => (
+                  <div key={index}>
+                    {line}
+                    {index < lines.length - 1 && <br />}
+                  </div>
+                ))}
+              </div>
+            );
+          }
           
         case 'gif':
           const isExpanded = expandedGif === content;
@@ -427,33 +475,7 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
               return null;
             }
             
-            const getContactInfo = (address, event = null) => {
-              if (event) {
-                if (address === event.sender && event.senderName) {
-                  return { 
-                    name: event.senderName, 
-                    avatar: event.senderAvatar || '👤' 
-                  };
-                }
-                if (address === event.recipient && event.recipientName) {
-                  return { 
-                    name: event.recipientName, 
-                    avatar: event.recipientAvatar || '👤' 
-                  };
-                }
-              }
-              
-              if (address === '0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959') {
-                return { name: 'wuya51', avatar: '👤' };
-              }
-              
-              const contractAddress = import.meta.env.VITE_OWNER_ID;
-              if (address === contractAddress) {
-                return { name: 'GMIC', avatar: '🤖' };
-              }
-              
-              return { name: '', avatar: '👤' };
-            };
+
             
             const renderAvatar = (avatar) => {
               if (avatar && (avatar.startsWith('http://') || avatar.startsWith('https://'))) {
@@ -462,7 +484,7 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
               return <span className="avatar-icon">{avatar}</span>;
             };
             
-            const contactInfo = getContactInfo(chat.partnerAddress, latestMessage);
+            const contactInfo = getContactInfo(chat.partnerAddress, latestMessage, currentAccount, isMobile);
 
             
             return (
@@ -489,7 +511,7 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
                           )}
                         </div>
                         <div className="latest-message">
-                          {latestMessage && typeof latestMessage === 'object' ? renderMessageContent(latestMessage) : <span className="error-message">[Invalid message]</span>}
+                          {latestMessage && typeof latestMessage === 'object' ? renderMessageContent(latestMessage, true) : <span className="error-message">[Invalid message]</span>}
                         </div>
                       </div>
                     </div>
@@ -514,10 +536,21 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
                         return null;
                       }
                       
-                      const senderContactInfo = getContactInfo(senderAddress, message);
+                      const senderContactInfo = getContactInfo(senderAddress, message, currentAccount, isMobile);
                       const displayAddress = `${senderAddress.substring(0, 6)}...${senderAddress.substring(senderAddress.length - 4)}`;
-                      const senderLabel = isSent ? 'Me' : 'Them';
-                      const displayName = senderContactInfo.name || senderLabel;
+                      
+                      let senderLabel;
+                      if (senderContactInfo.name && senderContactInfo.name !== '') {
+                          senderLabel = senderContactInfo.name;
+                      } else if (isSent) {
+                          senderLabel = 'Me';
+                      } else if (formatAccountOwner(senderAddress) === formatAccountOwner(import.meta.env.VITE_APP_ID)) {
+                          senderLabel = 'GMIC Bot';
+                      } else {
+                          senderLabel = 'Friend';
+                      }
+                      
+                      const displayName = senderLabel;
                       
                       return (
                         <div 
@@ -539,7 +572,7 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
                               </span>
                             </div>                            
                             <div className={`message-bubble ${isSent ? 'sent' : 'received'}`}>
-                              {renderMessageContent(message)}
+                              {renderMessageContent(message, false)}
                             </div>
                           </div>
                           
