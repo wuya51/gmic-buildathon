@@ -3,6 +3,13 @@ use linera_sdk::ViewStorageContext;
 use linera_sdk::linera_base_types::{AccountOwner, ChainId, Timestamp};
 use linera_sdk::views::linera_views::context::Context;
 use gm::{InvitationRecord, InvitationStats, MessageContent};
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Default, Clone, async_graphql::SimpleObject)]
+pub struct UserProfile {
+    pub name: Option<String>,
+    pub avatar: Option<String>,
+}
 
 #[derive(RootView)]
 #[view(context = ViewStorageContext)]
@@ -14,6 +21,8 @@ pub struct GmState {
     pub wallet_messages: MapView<AccountOwner, u64>,
     pub events: MapView<(ChainId, AccountOwner, Option<AccountOwner>), (u64, MessageContent)>,
     pub user_events: MapView<(ChainId, AccountOwner), Vec<(Option<AccountOwner>, u64, MessageContent)>>,
+    pub received_events: MapView<(ChainId, AccountOwner), Vec<(AccountOwner, u64, MessageContent)>>,
+    pub user_profiles: MapView<AccountOwner, UserProfile>,
 
     pub hourly_stats: MapView<(ChainId, u64), u64>,
     pub daily_stats: MapView<(ChainId, u64), u64>,
@@ -45,6 +54,7 @@ impl GmState {
             wallet_messages: MapView::new(context.clone()).expect("Failed to create wallet_messages map"),
             events: MapView::new(context.clone()).expect("Failed to create events map"),
             user_events: MapView::new(context.clone()).expect("Failed to create user_events map"),
+            received_events: MapView::new(context.clone()).expect("Failed to create received_events map"),
             hourly_stats: MapView::new(context.clone()).expect("Failed to create hourly_stats map"),
             daily_stats: MapView::new(context.clone()).expect("Failed to create daily_stats map"),
             monthly_stats: MapView::new(context.clone()).expect("Failed to create monthly_stats map"),
@@ -56,6 +66,7 @@ impl GmState {
             cooldown_enabled: RegisterView::new(context.clone()).expect("Failed to create cooldown_enabled register"),
             cooldown_whitelist: MapView::new(context.clone()).expect("Failed to create cooldown_whitelist map"),
             stream_events: MapView::new(context.clone()).expect("Failed to create stream_events map"),
+            user_profiles: MapView::new(context.clone()).expect("Failed to create user_profiles map"),
         }
     }
 
@@ -80,6 +91,12 @@ impl GmState {
         user_events.push((recipient.clone(), current_ts, content.clone()));
         user_events.sort_by(|a, b| b.1.cmp(&a.1));
         self.user_events.insert(&(chain_id, sender.clone()), user_events)?;
+        if let Some(recipient) = recipient.clone() {
+            let mut recv_events = self.received_events.get(&(chain_id, recipient.clone())).await?.unwrap_or_default();
+            recv_events.push((sender.clone(), current_ts, content.clone()));
+            recv_events.sort_by(|a, b| b.1.cmp(&a.1));
+            self.received_events.insert(&(chain_id, recipient), recv_events)?;
+        }
 
         let chain_count = self.chain_messages.get(&chain_id).await?.unwrap_or(0);
         self.chain_messages.insert(&chain_id, chain_count + 1)?;
@@ -160,6 +177,7 @@ impl GmState {
         let wallet_messages_context = context.clone_with_base_key(b"gm_wallet_messages".to_vec());
         let events_context = context.clone_with_base_key(b"gm_events".to_vec());
         let user_events_context = context.clone_with_base_key(b"gm_user_events".to_vec());
+        let received_events_context = context.clone_with_base_key(b"gm_received_events".to_vec());
         let hourly_stats_context = context.clone_with_base_key(b"gm_hourly_stats".to_vec());
         let daily_stats_context = context.clone_with_base_key(b"gm_daily_stats".to_vec());
         let monthly_stats_context = context.clone_with_base_key(b"gm_monthly_stats".to_vec());
@@ -173,6 +191,7 @@ impl GmState {
         let wallet_messages = MapView::load(wallet_messages_context).await?;
         let events = MapView::load(events_context).await?;
         let user_events = MapView::load(user_events_context).await?;
+        let received_events = MapView::load(received_events_context).await?;
         let hourly_stats = MapView::load(hourly_stats_context).await?;
         let daily_stats = MapView::load(daily_stats_context).await?;
         let monthly_stats = MapView::load(monthly_stats_context).await?;
@@ -192,6 +211,9 @@ impl GmState {
 
         let stream_events_context = context.clone_with_base_key(b"gm_stream_events".to_vec());
         let stream_events = MapView::load(stream_events_context).await?;
+        
+        let user_profiles_context = context.clone_with_base_key(b"gm_user_profiles".to_vec());
+        let user_profiles = MapView::load(user_profiles_context).await?;
 
         Ok(Self {
             owner,
@@ -201,6 +223,7 @@ impl GmState {
             wallet_messages,
             events,
             user_events,
+            received_events,
             hourly_stats,
             daily_stats,
             monthly_stats,
@@ -212,6 +235,7 @@ impl GmState {
             cooldown_enabled,
             cooldown_whitelist,
             stream_events,
+            user_profiles,
         })
     }
 
@@ -320,6 +344,15 @@ impl GmState {
         sender: &AccountOwner,
     ) -> Result<Vec<(Option<AccountOwner>, u64, MessageContent)>, ViewError> {
         let events = self.user_events.get(&(chain_id, *sender)).await?.unwrap_or_default();
+        Ok(events)
+    }
+
+    pub async fn get_received_events(
+        &self,
+        chain_id: ChainId,
+        recipient: &AccountOwner,
+    ) -> Result<Vec<(AccountOwner, u64, MessageContent)>, ViewError> {
+        let events = self.received_events.get(&(chain_id, *recipient)).await?.unwrap_or_default();
         Ok(events)
     }
 
@@ -454,6 +487,31 @@ impl GmState {
         }
     }
 
+    pub async fn get_user_profile(&self, user: &AccountOwner) -> Result<UserProfile, ViewError> {
+        if let Some(profile) = self.user_profiles.get(user).await? {
+            Ok(profile)
+        } else {
+            Ok(UserProfile::default())
+        }
+    }
+
+    pub async fn set_user_profile(
+        &mut self,
+        user: &AccountOwner,
+        name: Option<String>,
+        avatar: Option<String>,
+    ) -> Result<(), ViewError> {
+        let mut profile = self.get_user_profile(user).await?;
+        if let Some(name) = name {
+            profile.name = Some(name);
+        }
+        if let Some(avatar) = avatar {
+            profile.avatar = Some(avatar);
+        }
+        self.user_profiles.insert(user, profile)?;
+        Ok(())
+    }
+
     pub async fn get_invitation_stats(&self, user: AccountOwner) -> Result<Option<InvitationStats>, ViewError> {
         self.invitation_stats.get(&user).await
     }
@@ -586,6 +644,8 @@ impl GmState {
         Ok(result)
     }
 
+
+    
     pub async fn get_latest_events(
         &self,
         chain_id: ChainId,

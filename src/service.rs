@@ -1,10 +1,11 @@
 #![cfg_attr(target_arch = "wasm32", no_main)]
 
 mod state;
-use self::state::GmState;
+use self::state::{GmState, UserProfile};
 use gm::{GmAbi, GmOperation, InvitationRecord, InvitationStats, MessageContent};
 use async_graphql::{Object, Request, Response, Schema, SimpleObject, Subscription};
 use linera_sdk::{Service, ServiceRuntime};
+use linera_sdk::abi::WithServiceAbi;
 use linera_sdk::linera_base_types::{AccountOwner, ChainId};
 
 
@@ -13,7 +14,7 @@ use tokio::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
 linera_sdk::service!(GmService);
-impl linera_sdk::abi::WithServiceAbi for GmService {
+impl WithServiceAbi for GmService {
     type Abi = GmAbi;
 }
 
@@ -79,6 +80,18 @@ pub struct SignatureData {
     pub content: Option<String>,
 }
 
+#[derive(async_graphql::InputObject, Serialize, Deserialize, Debug)]
+pub struct UserProfileInput {
+    pub name: Option<String>,
+    pub avatar: Option<String>,
+}
+
+#[derive(SimpleObject)]
+struct SetUserProfileResult {
+    success: bool,
+    message: String,
+}
+
 #[derive(SimpleObject)]
 pub struct SignatureVerificationResult {
     pub success: bool,
@@ -89,7 +102,11 @@ pub struct SignatureVerificationResult {
 #[derive(SimpleObject)]
 pub struct GmEvent {
     pub sender: String,
+    pub sender_name: Option<String>,
+    pub sender_avatar: Option<String>,
     pub recipient: Option<String>,
+    pub recipient_name: Option<String>,
+    pub recipient_avatar: Option<String>,
     pub timestamp: u64,
     pub nonce: u64,
     pub content: MessageContent,
@@ -137,9 +154,6 @@ struct LeaderboardChain {
     chain: String,
     count: u64,
 }
-
-
-
 
 
 #[derive(SimpleObject, Serialize, Deserialize)]
@@ -250,27 +264,40 @@ impl QueryRoot {
         let state = self.state.lock().await;
         let chain_id = self.runtime.chain_id();
         let events = state.get_events(chain_id, &sender).await?;
-        Ok(events
-            .into_iter()
-            .map(|(recipient, timestamp, content)| {
-                let final_content = if content.is_text() && content.content.trim().is_empty() {
-                    MessageContent {
-                        message_type: "text".to_string(),
-                        content: "GMicrochains".to_string(),
-                    }
-                } else {
-                    content
-                };
-                
-                GmEvent {
-                    sender: sender.to_string(),
-                    recipient: recipient.map(|r| r.to_string()),
-                    timestamp,
-                    nonce: 0,
-                    content: final_content,
+        
+        let mut gm_events = Vec::new();
+        for (recipient, timestamp, content) in events {
+            let final_content = if content.is_text() && content.content.trim().is_empty() {
+                MessageContent {
+                    message_type: "text".to_string(),
+                    content: "GMicrochains".to_string(),
                 }
-            })
-            .collect())
+            } else {
+                content
+            };
+            
+            let sender_profile = state.get_user_profile(&sender).await.unwrap_or_default();
+            let recipient_profile = match &recipient {
+                Some(r) => state.get_user_profile(r).await.unwrap_or_default(),
+                None => UserProfile { name: None, avatar: None },
+            };
+            
+            gm_events.push(GmEvent {
+                sender: sender.to_string(),
+                sender_name: sender_profile.name,
+                sender_avatar: sender_profile.avatar,
+                recipient: recipient.map(|r| r.to_string()),
+                recipient_name: recipient_profile.name,
+                recipient_avatar: recipient_profile.avatar,
+                timestamp,
+                nonce: 0,
+                content: final_content,
+            });
+        }
+
+        gm_events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        
+        Ok(gm_events)
     }
 
     async fn get_stream_events(
@@ -284,12 +311,32 @@ impl QueryRoot {
         let all_index_values = state.events.index_values().await?;
         
         for ((_event_chain_id, sender, recipient), (timestamp, content)) in all_index_values {
+
+            let sender_profile = state.get_user_profile(&sender).await.unwrap_or_default();
+            let recipient_profile = match &recipient {
+                Some(r) => state.get_user_profile(r).await.unwrap_or_default(),
+                None => UserProfile { name: None, avatar: None },
+            };
+            
+            let final_content = if content.is_text() && content.content.trim().is_empty() {
+                MessageContent {
+                    message_type: "text".to_string(),
+                    content: "GMicrochains".to_string(),
+                }
+            } else {
+                content
+            };
+            
             all_events.push(GmEvent {
                 sender: sender.to_string(),
+                sender_name: sender_profile.name,
+                sender_avatar: sender_profile.avatar,
                 recipient: recipient.map(|r| r.to_string()),
+                recipient_name: recipient_profile.name,
+                recipient_avatar: recipient_profile.avatar,
                 timestamp,
                 nonce: 0,
-                content,
+                content: final_content,
             });
         }       
         all_events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
@@ -304,27 +351,38 @@ impl QueryRoot {
     ) -> Result<Vec<GmEvent>, async_graphql::Error> {
         let state = self.state.lock().await;
         let chain_id = self.runtime.chain_id();
-        let mut received_events = Vec::new();
+        let events = state.get_received_events(chain_id, &recipient).await?;
+        let mut gm_events = Vec::new();
         
-        let all_index_values = state.events.index_values().await?;
-        
-        for ((event_chain_id, sender, recipient_option), (timestamp, content)) in all_index_values {
-            if let Some(rec) = recipient_option {
-                if rec == recipient && event_chain_id == chain_id {
-                    received_events.push(GmEvent {
-                        sender: sender.to_string(),
-                        recipient: Some(recipient.to_string()),
-                        timestamp,
-                        nonce: 0,
-                        content,
-                    });
+        for (sender, timestamp, content) in events {
+            let final_content = if content.is_text() && content.content.trim().is_empty() {
+                MessageContent {
+                    message_type: "text".to_string(),
+                    content: "GMicrochains".to_string(),
                 }
-            }
+            } else {
+                content
+            };
+            
+            let sender_profile = state.get_user_profile(&sender).await.unwrap_or_default();
+            let recipient_profile = state.get_user_profile(&recipient).await.unwrap_or_default();
+            
+            gm_events.push(GmEvent {
+                sender: sender.to_string(),
+                sender_name: sender_profile.name,
+                sender_avatar: sender_profile.avatar,
+                recipient: Some(recipient.to_string()),
+                recipient_name: recipient_profile.name,
+                recipient_avatar: recipient_profile.avatar,
+                timestamp,
+                nonce: 0,
+                content: final_content,
+            });
         }
         
-        received_events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        gm_events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
         
-        Ok(received_events)
+        Ok(gm_events)
     }
 
     async fn get_total_messages(&self, _ctx: &async_graphql::Context<'_>) -> Result<u64, async_graphql::Error> {
@@ -567,7 +625,18 @@ impl QueryRoot {
         let rank = state.get_invitation_rank(&user).await?;
         Ok(rank)
     }
-
+    
+    async fn get_user_profile(
+        &self,
+        _ctx: &async_graphql::Context<'_>,
+        user: AccountOwner,
+    ) -> Result<Option<UserProfile>, async_graphql::Error> {
+        let state = self.state.lock().await;
+        match state.get_user_profile(&user).await {
+            Ok(profile) => Ok(Some(profile)),
+            Err(err) => Err(async_graphql::Error::new(format!("Failed to get profile: {}", err))),
+        }
+    }
 
 }
 
@@ -798,6 +867,44 @@ impl MutationRoot {
         }
     }
     
+    async fn set_user_profile(
+        &self,
+        _ctx: &async_graphql::Context<'_>,
+        user: AccountOwner,
+        profile: UserProfileInput,
+    ) -> Result<SetUserProfileResult, async_graphql::Error> {
+        if let Some(name) = &profile.name {
+            if name.len() > 50 {
+                return Ok(SetUserProfileResult {
+                    success: false,
+                    message: "Name too long, maximum 50 characters".to_string(),
+                });
+            }
+        }
+        
+        if let Some(avatar) = &profile.avatar {
+            if !avatar.starts_with("http://") && !avatar.starts_with("https://") {
+                return Ok(SetUserProfileResult {
+                    success: false,
+                    message: "Avatar must be a valid HTTP or HTTPS URL".to_string(),
+                });
+            }
+        }
+        
+        let operation = GmOperation::SetUserProfile {
+            user: user.clone(),
+            name: profile.name,
+            avatar: profile.avatar,
+        };
+        
+        self.runtime.schedule_operation(&operation);
+        
+        Ok(SetUserProfileResult {
+            success: true,
+            message: "Profile update scheduled successfully".to_string(),
+        })
+    }
+    
     async fn remove_whitelist_address(
         &self,
         _ctx: &async_graphql::Context<'_>,
@@ -819,5 +926,7 @@ impl MutationRoot {
             })
         }
     }
+    
+
 
 }

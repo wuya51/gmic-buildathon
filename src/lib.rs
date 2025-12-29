@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use linera_sdk::linera_base_types::{AccountOwner, Timestamp};
+use linera_sdk::abi::{ContractAbi, ServiceAbi};
 use async_graphql::{InputObject, SimpleObject};
 pub type MessageType = String;
 
@@ -46,12 +47,12 @@ pub enum GmMessage {
 
 pub struct GmAbi;
 
-impl linera_sdk::abi::ContractAbi for GmAbi {
+impl ContractAbi for GmAbi {
     type Operation = GmOperation;
     type Response = ();
 }
 
-impl linera_sdk::abi::ServiceAbi for GmAbi {
+impl ServiceAbi for GmAbi {
     type Query = async_graphql::Request;
     type QueryResponse = async_graphql::Response;
 }
@@ -61,6 +62,7 @@ pub enum GmOperation {
     Gm { sender: AccountOwner, recipient: AccountOwner, content: MessageContent, inviter: Option<AccountOwner> },
     ClaimInvitationRewards { sender: AccountOwner },
     SetCooldownEnabled { enabled: bool },
+    SetUserProfile { user: AccountOwner, name: Option<String>, avatar: Option<String> },
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, async_graphql::SimpleObject)]

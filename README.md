@@ -1,166 +1,832 @@
 # GMIC Buildathon Project
 
-This is a submission for the Linera Buildathon that implements a GM (Good Morning) social application with cross-chain messaging capabilities.
+A decentralized cross-chain social messaging application built on the Linera blockchain platform, featuring advanced messaging capabilities, user profiles, and comprehensive analytics.
 
-## Overview
+## 🌟 Project Overview
 
-The GMIC (Good Morning Cross-chain) application allows users to send "GM" messages across different chains, track statistics, and participate in leaderboards. It includes features like cooldown periods, invitation systems, and user activity tracking.
+**GMIC (Good Morning Cross-chain)** is a fully-featured Web3 social application that enables users to send "GM" messages across different blockchain chains, track social statistics, participate in leaderboards, and manage their digital identity. The application combines the power of Linera's blockchain infrastructure with modern web technologies to deliver a seamless user experience.
 
-The web frontend has been enhanced with advanced messaging features including voice messages, GIF support, real-time notifications, and comprehensive error handling.
+### Key Highlights
+- **Cross-chain messaging**: Send messages across different Linera chains
+- **Multi-format support**: Text, GIF, and voice messages
+- **User profiles**: Customizable usernames and avatars stored on-chain
+- **Social features**: Invitation system, leaderboards, and activity tracking
+- **Real-time updates**: GraphQL subscriptions for live message synchronization
+- **IPFS integration**: Decentralized storage for voice messages and avatars
+- **Mobile-first design**: Fully responsive interface optimized for all devices
+- **Security**: Message validation, XSS protection, and cooldown mechanisms
 
-## Structure
+## 📋 Table of Contents
 
-The project consists of:
+- [Architecture](#architecture)
+- [Features](#features)
+- [Project Structure](#project-structure)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [API Reference](#api-reference)
+- [Development Guide](#development-guide)
+- [Troubleshooting](#troubleshooting)
+- [Technical Details](#technical-details)
 
-- `src/`: Rust source code for the Linera contract and service
-  - `lib.rs`: Core message types and ABI definitions
-  - `contract.rs`: Smart contract implementation with GM operations
-  - `service.rs`: GraphQL service implementation
-  - `state.rs`: State management and statistics
-- `web-frontend/`: Enhanced frontend application built with Vite and React 18
-  - Voice message recording and playback
-  - GIF message support with expandable previews
-  - Real-time message synchronization
-  - Mobile-responsive design
-  - Comprehensive error handling and notifications
-- `run.bash`: Script to build and run the application locally
-- `compose.yaml`: Docker Compose configuration (experimental, not fully tested)
-- `Dockerfile`: Docker configuration for containerized deployment
+## 🏗️ Architecture
 
-## Usage
+### Technology Stack
 
-### Running Locally with run.bash
+**Backend (Smart Contract)**
+- **Language**: Rust
+- **Platform**: Linera SDK
+- **State Management**: Linera Views (MapView, RegisterView)
+- **API**: GraphQL with async-graphql
+- **Message Types**: Text, GIF, Voice
+- **Storage**: On-chain state + IPFS for large files
 
-The recommended way to run this application is using the `run.bash` script:
+**Frontend**
+- **Framework**: React 18
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS + Custom CSS
+- **State Management**: React Hooks (useState, useEffect, useCallback)
+- **Wallet Integration**: Dynamic Labs SDK
+- **GraphQL Client**: Apollo Client
+- **IPFS**: Pinata Cloud
+- **Web3 Libraries**: ethers.js, viem, web3.js
 
-```bash
-chmod +x run.bash && ./run.bash
+### System Components
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      User Interface                         │
+│  (React 18 + Vite + Tailwind CSS)                          │
+├─────────────────────────────────────────────────────────────┤
+│  - Wallet Connection (Dynamic Labs)                         │
+│  - Message Composition (Text/GIF/Voice)                     │
+│  - Contact Selector & User Profile                          │
+│  - Leaderboard & Statistics                                │
+│  - Real-time Notifications                                  │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                    GraphQL API Layer                        │
+│  (async-graphql + Apollo Client)                           │
+├─────────────────────────────────────────────────────────────┤
+│  - Queries: Get messages, stats, profiles                   │
+│  - Mutations: Send GM, update profile                       │
+│  - Subscriptions: Real-time message updates                │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  Linera Smart Contract                      │
+│  (Rust + Linera SDK)                                        │
+├─────────────────────────────────────────────────────────────┤
+│  - Contract: Execute operations, emit events               │
+│  - Service: GraphQL query handling                          │
+│  - State: User data, messages, statistics                  │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│              Storage Layer                                  │
+├─────────────────────────────────────────────────────────────┤
+│  - On-chain: Messages, profiles, statistics                │
+│  - IPFS: Voice messages, avatars, GIFs                      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-This script will:
-1. Set up the necessary environment and directories
-2. Initialize a Linera wallet (if not already initialized)
-3. Request a new chain from the faucet
-4. Build the WASM modules for the contract and service
-5. Publish the modules to the chain
-6. Create the application with the specified owner
-7. Save configuration to `.env` file for the frontend
-8. Start the Linera service on port 8080
-9. Build and run the frontend on port 3000
-10. Display access URLs and log file locations
+## ✨ Features
 
-The application will be accessible at:
-- Frontend: http://localhost:3000/[CHAIN_ID]?app=[APP_ID]&owner=[OWNER_ID]&port=8080
-- GraphQL API: http://localhost:8080/chains/[CHAIN_ID]/applications/[APP_ID]
+### Core Messaging Features
 
-### Enhanced Frontend Configuration
+#### 📝 Multi-Format Messaging
+- **Text Messages**: Up to 280 characters with content validation
+- **GIF Messages**: Support for GIF URLs with automatic preview
+- **Voice Messages**: Record and send audio clips via IPFS
+  - MediaRecorder API for audio capture
+  - Automatic upload to Pinata IPFS
+  - Visual waveform display
+  - Duration tracking and progress indicators
 
-The web frontend requires additional Pinata API configuration for voice message storage:
+#### 🔒 Security & Validation
+- **XSS Protection**: Script tag filtering and sanitization
+- **Content Moderation**: Sensitive word detection and filtering
+- **Message Length Limits**: Text (280 chars), GIF/Voice (500 chars)
+- **URL Validation**: HTTPS requirement for external content
+- **Self-Messaging Prevention**: Blocks sending messages to self
 
-1. **Pinata Setup**: Create a free account at [pinata.cloud](https://pinata.cloud)
-2. **API Keys**: Generate API keys in your Pinata dashboard
-3. **Environment Variables**: Add to your `.env` file:
-   ```
-   VITE_PINATA_API_KEY=your_pinata_api_key
-   VITE_PINATA_SECRET_API_KEY=your_pinata_secret_api_key
-   ```
+#### ⏱️ Cooldown System
+- **24-Hour Cooldown**: Configurable cooldown between messages
+- **Whitelist System**: Bypass cooldown for trusted addresses
+- **Real-time Tracking**: Display remaining cooldown time
+- **Admin Controls**: Enable/disable cooldown system
 
-4. **Voice Message Features**:
-   - Audio recording using MediaRecorder API
-   - Automatic upload to IPFS via Pinata
-   - Visual waveform display during playback
-   - Progress tracking and duration display
+### User Profile Features
 
-### Running with Docker (Experimental)
+#### 👤 Profile Management
+- **Custom Username**: Set and update display name
+- **Avatar Upload**: Upload custom avatar images to IPFS
+- **Profile Caching**: Local cache for improved performance
+- **Default Profiles**: Auto-generated profiles for new users
 
-Docker support is available through `compose.yaml` but is still experimental and **not fully tested**:
+#### 📊 User Statistics
+- **Message Count**: Total messages sent per user
+- **User Ranking**: Position in global leaderboard
+- **Activity Trends**: Daily, hourly, and monthly activity analysis
+- **Chain Activity**: Messages sent across different chains
 
-```bash
-docker compose up
+### Social Features
+
+#### 🎉 Invitation System
+- **Referral Rewards**: Earn rewards for inviting new users
+  - 30 points for first-time invitees
+  - 10 points for each subsequent message from invitees
+- **Invitation Tracking**: Monitor invited users and rewards
+- **Invitation Leaderboard**: Top inviters ranking
+
+#### 🏆 Leaderboards
+- **User Leaderboard**: Top users by message count
+- **Chain Leaderboard**: Most active chains
+- **Invitation Leaderboard**: Top inviters by rewards
+- **Real-time Updates**: Live ranking updates
+
+#### 💬 Message History
+- **Sent Messages**: View all messages you've sent
+- **Received Messages**: View messages sent to you
+- **Chat History**: Organized conversation view
+- **Timestamp Tracking**: Precise message timestamps
+
+### Frontend Features
+
+#### 🎨 User Interface
+- **Modern Design**: Clean, intuitive interface
+- **Dark Mode**: Eye-friendly dark theme
+- **Responsive Layout**: Optimized for desktop, tablet, and mobile
+- **Smooth Animations**: Fluid transitions and interactions
+- **Emoji Picker**: Quick emoji insertion
+- **GIF Picker**: Browse and select GIFs from Giphy
+
+#### 🔔 Notifications
+- **Real-time Alerts**: Instant feedback for actions
+- **Error Messages**: Clear, user-friendly error descriptions
+- **Success Notifications**: Confirmation for successful operations
+- **Cooldown Reminders**: Notify when cooldown expires
+
+#### 💼 Wallet Integration
+- **Multi-Wallet Support**: Compatible with various Web3 wallets
+- **Dynamic Labs SDK**: Seamless wallet connection
+- **Address Validation**: Verify wallet addresses
+- **Chain Detection**: Auto-detect wallet chain
+
+#### 📱 Mobile Optimization
+- **Touch-Friendly**: Optimized for touch interactions
+- **Responsive Components**: Adaptive layout for all screen sizes
+- **Performance**: Fast loading and smooth scrolling
+- **Offline Support**: Basic offline functionality
+
+## 📁 Project Structure
+
+```
+gmic-buildathon/
+├── src/                          # Rust smart contract source
+│   ├── lib.rs                    # Core types and ABI definitions
+│   ├── contract.rs               # Contract implementation
+│   ├── service.rs                # GraphQL service
+│   └── state.rs                  # State management
+├── web-frontend/                 # React frontend application
+│   ├── src/
+│   │   ├── components/           # React components
+│   │   │   ├── ChatHistory.js    # Message history component
+│   │   │   ├── EmojiPicker.js    # Emoji selection
+│   │   │   ├── GifPicker.js      # GIF selection
+│   │   │   └── UserProfile.js    # User profile management
+│   │   ├── App.js                # Main application component
+│   │   ├── App.css               # Application styles
+│   │   ├── GMOperations.js       # GraphQL operations
+│   │   ├── Leaderboard.js        # Leaderboard component
+│   │   ├── NotificationCenter.js # Notification system
+│   │   ├── WalletProvider.js     # Wallet integration
+│   │   ├── GraphQLProvider.js    # GraphQL client setup
+│   │   ├── queries.js            # GraphQL queries
+│   │   └── index.js              # Application entry point
+│   ├── public/                   # Static assets
+│   │   ├── GMic.png              # Application logo
+│   │   ├── favicon.ico           # Favicon
+│   │   └── index.html            # HTML template
+│   ├── package.json              # Node dependencies
+│   ├── vite.config.js            # Vite configuration
+│   └── tailwind.config.js        # Tailwind CSS configuration
+├── run.bash                      # Setup and run script
+├── compose.yaml                  # Docker Compose (experimental)
+├── Dockerfile                    # Docker configuration
+├── Cargo.toml                    # Rust dependencies
+└── README.md                     # This file
 ```
 
-**Note**: The Docker configuration has not been thoroughly tested and may contain issues. For reliable deployment, please use the `run.bash` script instead.
+## 🚀 Quick Start
 
-## Features
+### Prerequisites
 
-### Core Features
-- Cross-chain GM messaging
-- 24-hour cooldown period between messages
-- User statistics and leaderboards
-- Invitation system with rewards
-- Activity trend analysis
-- GraphQL API for querying data
-- Real-time event subscriptions
+- **Rust**: Latest stable version
+- **Node.js**: v16 or higher
+- **npm** or **pnpm**: Package manager
+- **Linera SDK**: Installed and configured
+- **Pinata Account**: Free account for IPFS storage
 
-### Enhanced Web Frontend Features
-- **Voice Messaging**: Record and send voice messages with audio playback controls
-- **GIF Support**: Send and view GIF messages with expandable preview
-- **Message Deduplication**: Prevents duplicate message sending and display
-- **Real-time Notifications**: User-friendly error notifications in English
-- **Mobile Responsive**: Optimized for both desktop and mobile devices
-- **Audio Playback**: Visual waveform display with progress tracking
-- **Enhanced Error Handling**: Comprehensive error notifications and logging
-- **Message Validation**: Prevents sending messages to self with clear notifications
+### Installation
 
-## Development
+1. **Clone the repository** (if not already done)
+   ```bash
+   cd /path/to/linera-protocol/examples/gmic-buildathon
+   ```
 
-To modify the application:
+2. **Make the run script executable**
+   ```bash
+   chmod +x run.bash
+   ```
 
-1. Update the Rust source code in the `src/` directory
-2. Modify the frontend in the `web-frontend/` directory
-3. Run `./run.bash` to test your changes
+3. **Run the application**
+   ```bash
+   ./run.bash
+   ```
 
-### Important Configuration Notes
+The script will automatically:
+- Set up the Linera wallet
+- Request a new chain from the faucet
+- Build WASM modules
+- Publish the application
+- Start the backend service (port 8080)
+- Start the frontend (port 3000)
 
-1. **24-Hour Cooldown Whitelist**: The application includes a 24-hour cooldown system for sending messages. In `src/state.rs`, there is a hardcoded whitelist address that bypasses this cooldown. **You should modify this address to your own** before deploying:
+### Access the Application
 
+After running the script, you can access:
+
+- **Frontend**: `http://localhost:3000/[CHAIN_ID]?app=[APP_ID]&owner=[OWNER_ID]&port=8080`
+- **GraphQL API**: `http://localhost:8080/chains/[CHAIN_ID]/applications/[APP_ID]`
+- **Backend Logs**: `tail -f backend.log`
+- **Frontend Logs**: `tail -f frontend.log`
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+Create a `.env` file in `web-frontend/` with the following variables:
+
+```bash
+# Linera Configuration
+VITE_CHAIN_ID=your_chain_id
+VITE_APP_ID=your_app_id
+VITE_OWNER_ID=your_owner_id
+VITE_PORT=8080
+VITE_HOST=localhost
+
+# Pinata IPFS Configuration
+VITE_PINATA_API_KEY=your_pinata_api_key
+VITE_PINATA_SECRET_API_KEY=your_pinata_secret_api_key
+```
+
+### Pinata Setup
+
+1. **Create Account**: Sign up at [pinata.cloud](https://pinata.cloud)
+2. **Generate API Keys**:
+   - Go to API Keys section in your dashboard
+   - Create new API key with appropriate permissions
+   - Copy the API Key and Secret API Key
+3. **Configure Environment**: Add keys to your `.env` file
+
+### Cooldown Whitelist
+
+To bypass the 24-hour cooldown for specific addresses, modify `src/state.rs`:
+
+```rust
+// In src/state.rs, around line 66
+let default_whitelist_address: AccountOwner = "YOUR_ADDRESS_HERE"
+    .to_lowercase()
+    .parse()
+    .map_err(|_| ViewError::NotFound("Failed to parse default whitelist address".to_string()))?;
+```
+
+Replace `YOUR_ADDRESS_HERE` with your wallet address.
+
+### Predefined Contacts
+
+The application includes predefined contacts in the contact selector:
+- **wuya51**: `0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959`
+- **GMIC**: Owner address (configured in `.env`)
+
+These contacts can be customized by modifying the `defaultContacts` object in `web-frontend/src/App.js`.
+
+## 📚 API Reference
+
+### GraphQL Queries
+
+#### Get User Messages
+```graphql
+query GetGmEvents($sender: AccountOwner!) {
+  getGmEvents(sender: $sender) {
+    sender
+    sender_name
+    sender_avatar
+    recipient
+    recipient_name
+    recipient_avatar
+    timestamp
+    content {
+      message_type
+      content
+    }
+  }
+}
+```
+
+#### Get Total Messages
+```graphql
+query GetTotalMessages {
+  getTotalMessages
+}
+```
+
+#### Get Leaderboard
+```graphql
+query GetTopUsers($limit: Int!) {
+  getTopUsers(limit: $limit) {
+    user
+    count
+  }
+}
+```
+
+#### Get User Profile
+```graphql
+query GetUserProfile($user: AccountOwner!) {
+  getUserProfile(user: $user) {
+    name
+    avatar
+  }
+}
+```
+
+#### Check Cooldown Status
+```graphql
+query CheckCooldown($user: AccountOwner!) {
+  checkCooldownStatus(user: $user) {
+    in_cooldown
+    remaining_time
+    enabled
+  }
+}
+```
+
+### GraphQL Mutations
+
+#### Send GM Message
+```graphql
+mutation SendGm(
+  $sender: AccountOwner!
+  $recipient: AccountOwner!
+  $content: MessageContentInput!
+  $signature: String!
+) {
+  sendGm(
+    sender: $sender
+    recipient: $recipient
+    content: $content
+    signature: $signature
+  ) {
+    success
+    message
+    timestamp
+  }
+}
+```
+
+#### Update User Profile
+```graphql
+mutation SetUserProfile(
+  $user: AccountOwner!
+  $name: String
+  $avatar: String
+) {
+  setUserProfile(
+    user: $user
+    name: $name
+    avatar: $avatar
+  ) {
+    success
+    message
+  }
+}
+```
+
+#### Claim Invitation Rewards
+```graphql
+mutation ClaimRewards($sender: AccountOwner!) {
+  claimInvitationRewards(sender: $sender) {
+    success
+    message
+  }
+}
+```
+
+### GraphQL Subscriptions
+
+#### Stream Events
+```graphql
+subscription StreamEvents($chainId: ChainId!) {
+  streamEvents(chainId: $chainId) {
+    sender
+    recipient
+    timestamp
+    content {
+      message_type
+      content
+    }
+  }
+}
+```
+
+## 🛠️ Development Guide
+
+### Modifying the Smart Contract
+
+1. **Edit Rust Source**: Modify files in `src/` directory
+2. **Build WASM**:
+   ```bash
+   cargo build --release --target wasm32-unknown-unknown
+   ```
+3. **Publish Changes**:
+   ```bash
+   linera publish-module examples/target/wasm32-unknown-unknown/release/gm_{contract,service}.wasm
+   ```
+
+### Modifying the Frontend
+
+1. **Edit React Components**: Modify files in `web-frontend/src/`
+2. **Hot Reload**: Vite provides hot module replacement during development
+3. **Build for Production**:
+   ```bash
+   cd web-frontend
+   npm run build
+   ```
+
+### Adding New Features
+
+**Example: Adding a new message type**
+
+1. **Update `src/lib.rs`**:
    ```rust
-   // In src/state.rs, line ~66
-   let default_whitelist_address: AccountOwner = "0xa0916f957038344afff8c117b0a568562f73f0f2"
-       .to_lowercase()
-       .parse()
-       .map_err(|_| ViewError::NotFound("Failed to parse default whitelist address".to_string()))?;
+   impl MessageContent {
+       pub fn is_new_type(&self) -> bool {
+           self.message_type == "new_type"
+       }
+   }
    ```
 
-2. **Frontend Environment Variables**: The web frontend requires a `.env` file in the `web-frontend/` directory with:
-   ```
-   VITE_CHAIN_ID=your_chain_id
-   VITE_APP_ID=your_app_id
-   VITE_OWNER_ID=your_owner_id
-   VITE_PORT=8080
-   VITE_HOST=localhost
-   VITE_PINATA_API_KEY=your_pinata_api_key
-   VITE_PINATA_SECRET_API_KEY=your_pinata_secret_api_key
+2. **Update `src/contract.rs`**:
+   ```rust
+   impl GmContract {
+       pub fn is_message_content_valid(content: &MessageContent) -> bool {
+           // Add validation for new type
+       }
+   }
    ```
 
-3. **Docker Configuration**: The Docker setup is experimental and not fully tested. For production use, prefer the `run.bash` script.
+3. **Update Frontend**:
+   - Add UI component in `web-frontend/src/components/`
+   - Integrate with `App.js`
+   - Update GraphQL operations in `GMOperations.js`
 
-The application uses the Linera SDK for smart contract development and GraphQL for the API layer.
+### Testing
 
-## Frontend Troubleshooting
+**Run Frontend Tests**:
+```bash
+cd web-frontend
+npm test
+```
 
-### Voice Messages Not Working
-- **Microphone Permissions**: Ensure your browser allows microphone access
-- **Pinata API Keys**: Verify your Pinata API credentials are correct in the `.env` file
-- **Network Issues**: Check internet connection for IPFS uploads
-- **Browser Support**: Ensure you're using a modern browser with MediaRecorder API support
+**Run Rust Tests**:
+```bash
+cargo test
+```
 
-### Messages Sending Multiple Times
-- The frontend includes duplicate prevention mechanisms
-- Check network connectivity - poor connections may cause retries
-- Verify the send button isn't being double-clicked
+## 🔧 Troubleshooting
 
-### Audio Playback Issues
-- Voice messages use HTML5 audio elements
-- Check browser audio permissions
-- Ensure audio files are properly uploaded to IPFS
+### Common Issues
 
-### Mobile Display Problems
-- The frontend is fully responsive and mobile-optimized
-- Test on different screen sizes
-- Check for CSS conflicts in browser developer tools
+#### Wallet Connection Problems
 
-### Error Notifications
-- All error messages are displayed in English
-- Check browser console for detailed error logs
-- Only "New subscription event" and "Syncing 24-hour limit status" logs are preserved in production
+**Issue**: Wallet won't connect
+- **Solution**: 
+  - Check if wallet is installed and unlocked
+  - Verify network settings match Linera testnet
+  - Clear browser cache and try again
+  - Check console for specific error messages
+
+**Issue**: "Invalid account owner" error
+- **Solution**:
+  - Ensure wallet address is in correct format (0x prefix)
+  - Verify address length (should be 42 characters)
+  - Check if address is properly formatted in `.env` file
+
+#### Message Sending Issues
+
+**Issue**: Messages not sending
+- **Solution**:
+  - Check if you're in cooldown period
+  - Verify recipient address is valid
+  - Ensure you have sufficient gas
+  - Check network connectivity
+  - Review backend logs for errors
+
+**Issue**: Voice messages not uploading
+- **Solution**:
+  - Verify Pinata API keys are correct
+  - Check microphone permissions in browser
+  - Ensure internet connection is stable
+  - Verify file size is within limits
+  - Check Pinata service status
+
+#### IPFS Issues
+
+**Issue**: Avatar upload fails
+- **Solution**:
+  - Verify Pinata credentials in `.env`
+  - Check image file size (should be < 10MB)
+  - Ensure file format is supported (PNG, JPG, GIF)
+  - Verify internet connection
+  - Check Pinata dashboard for upload limits
+
+**Issue**: IPFS links not loading
+- **Solution**:
+  - Verify IPFS gateway is accessible
+  - Check if content is properly pinned
+  - Try alternative IPFS gateways
+  - Clear browser cache
+
+#### Cooldown Issues
+
+**Issue**: Cooldown not working as expected
+- **Solution**:
+  - Verify cooldown is enabled in contract
+  - Check if address is whitelisted
+  - Verify system time is correct
+  - Check cooldown duration setting
+
+**Issue**: Want to bypass cooldown
+- **Solution**:
+  - Add your address to whitelist in `src/state.rs`
+  - Republish the contract
+  - Or disable cooldown system entirely
+
+### Debug Mode
+
+Enable detailed logging by modifying `web-frontend/src/App.js`:
+
+```javascript
+// Comment out this line to enable all console logs
+// const PRODUCTION_LOGS_ONLY = true;
+
+// Or set to false to show all logs
+const PRODUCTION_LOGS_ONLY = false;
+```
+
+### Log Files
+
+- **Backend Logs**: `backend.log` - Linera service logs
+- **Frontend Logs**: `frontend.log` - Vite development server logs
+
+View logs in real-time:
+```bash
+tail -f backend.log
+tail -f frontend.log
+```
+
+## 🔬 Technical Details
+
+### Smart Contract Architecture
+
+#### State Management
+
+The contract uses Linera's View system for efficient state management:
+
+- **MapView**: Key-value storage for indexed data
+  - `last_gm`: Last GM timestamp per user
+  - `events`: All GM events
+  - `user_events`: User-specific events
+  - `received_events`: Events received by user
+  - `user_profiles`: User profile data
+  - `invitations`: Invitation records
+  - `invitation_stats`: Invitation statistics
+  - `cooldown_whitelist`: Cooldown bypass addresses
+
+- **RegisterView**: Single-value storage
+  - `owner`: Application owner
+  - `total_messages`: Global message count
+  - `cooldown_enabled`: Cooldown system toggle
+
+#### Message Flow
+
+1. **User Action**: User sends message from frontend
+2. **Validation**: Frontend validates message content
+3. **Signature**: User signs message with wallet
+4. **Mutation**: GraphQL mutation sends to contract
+5. **Execution**: Contract executes `GmOperation`
+6. **State Update**: Contract updates on-chain state
+7. **Event Emission**: Contract emits event to stream
+8. **Subscription**: Frontend receives update via subscription
+9. **UI Update**: Frontend updates message list
+
+#### Security Measures
+
+- **XSS Prevention**: Filter script tags and dangerous HTML
+- **Content Validation**: Check message length and format
+- **Sensitive Word Filter**: Block inappropriate content
+- **URL Validation**: Ensure HTTPS for external links
+- **Self-Messaging Block**: Prevent sending to self
+- **Cooldown System**: Rate limiting for message sending
+
+### Frontend Architecture
+
+#### Component Structure
+
+```
+App (Root)
+├── ErrorBoundary
+├── WalletProvider
+│   └── DynamicConnectButton
+├── GraphQLProvider
+│   └── ApolloClient
+├── NotificationCenter
+├── GMOperations
+│   ├── MessageComposer
+│   ├── ContactSelector
+│   └── MessageList
+├── Leaderboard
+├── UserProfile
+│   ├── ProfileEditor
+│   └── AvatarUploader
+└── ChatHistory
+    ├── SentMessages
+    └── ReceivedMessages
+```
+
+#### State Management
+
+The application uses React Hooks for state management:
+
+- **useState**: Component-level state
+- **useEffect**: Side effects and subscriptions
+- **useCallback**: Memoized callbacks
+- **useMemo**: Computed values
+- **useRef**: Persistent references
+
+#### Data Flow
+
+1. **User Input**: User interacts with UI components
+2. **State Update**: Component state updates
+3. **GraphQL Query**: Fetch data from backend
+4. **Data Processing**: Process and format data
+5. **Render**: Update UI with new data
+6. **Subscription**: Listen for real-time updates
+
+#### Performance Optimizations
+
+- **Memoization**: Use `useMemo` and `useCallback` to prevent unnecessary re-renders
+- **Lazy Loading**: Load components on demand
+- **Debouncing**: Debounce search and input operations
+- **Virtual Scrolling**: For large message lists (future enhancement)
+- **Caching**: Cache user profiles and frequently accessed data
+
+### IPFS Integration
+
+#### Pinata Configuration
+
+The application uses Pinata Cloud for IPFS storage:
+
+- **API Authentication**: API key and secret key
+- **File Upload**: POST to Pinata API
+- **IPFS Gateway**: Use Pinata's public gateway
+- **Content Addressing**: IPFS hash for content identification
+
+#### File Storage
+
+- **Voice Messages**: Audio files uploaded to IPFS
+- **User Avatars**: Profile images stored on IPFS
+- **GIFs**: GIF URLs stored directly (not uploaded)
+
+#### Benefits of IPFS
+
+- **Decentralization**: No single point of failure
+- **Content Addressing**: Immutable content addressing
+- **Censorship Resistance**: Resistant to censorship
+- **Cost-Effective**: Lower storage costs than traditional cloud
+
+### GraphQL Schema
+
+#### Query Types
+
+```graphql
+type Query {
+  getGmRecord(owner: AccountOwner!): GmRecord
+  getGmEvents(sender: AccountOwner!): [GmEvent!]
+  getStreamEvents(chainId: ChainId!): [GmEvent!]
+  getReceivedGmEvents(recipient: AccountOwner!): [GmEvent!]
+  getTotalMessages: Int!
+  getChainMessages(chainId: ChainId!): Int!
+  getWalletMessages(owner: AccountOwner!): Int!
+  getHourlyStats(chainId: ChainId!, startHour: Int!, endHour: Int!): [TimeStat!]
+  getDailyStats(chainId: ChainId!, startDay: Int!, endDay: Int!): [TimeStat!]
+  getMonthlyStats(chainId: ChainId!, startMonth: Int!, endMonth: Int!): [TimeStat!]
+  getTopUsers(limit: Int!): [LeaderboardUser!]
+  getTopChains(limit: Int!): [LeaderboardChain!]
+  getUserRank(user: AccountOwner!): Int!
+  getMessageTrend(chainId: ChainId!, periodDays: Int!): [TimeStat!]
+  getUserActivityTrend(user: AccountOwner!, periodDays: Int!): [TimeStat!]
+  getNextNonce(owner: AccountOwner!): Int!
+  getCooldownStatus: CooldownStatus!
+  isUserWhitelisted(user: AccountOwner!): Boolean!
+  checkCooldownStatus(user: AccountOwner!): CooldownCheckResult!
+  generateSignatureMessage(
+    sender: AccountOwner!
+    recipient: AccountOwner
+    chainId: ChainId!
+    content: MessageContent!
+  ): String!
+  verifyGmSignature(
+    signatureData: SignatureData!
+    signature: String!
+  ): SignatureVerificationResult!
+  getInvitationStats(user: AccountOwner!): InvitationStats
+  getInvitationRecord(inviter: AccountOwner!): [InvitationRecord!]
+  getTopInvitationRewards(limit: Int!): [LeaderboardInvitationUser!]
+  getInvitationRank(user: AccountOwner!): Int!
+  getUserProfile(user: AccountOwner!): UserProfile!
+}
+```
+
+#### Mutation Types
+
+```graphql
+type Mutation {
+  sendGm(
+    sender: AccountOwner!
+    recipient: AccountOwner!
+    content: MessageContent!
+    signature: String!
+  ): SendGmResponse!
+  claimInvitationRewards(sender: AccountOwner!): String!
+  setCooldownEnabled(enabled: Boolean!): Boolean!
+  setUserProfile(
+    user: AccountOwner!
+    name: String
+    avatar: String
+  ): SetUserProfileResult!
+}
+```
+
+#### Subscription Types
+
+```graphql
+type Subscription {
+  streamEvents(chainId: ChainId!): GmEvent!
+}
+```
+
+## 📄 License
+
+This project is part of the Linera Buildathon submission. Please refer to the Linera project license for usage terms.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📞 Support
+
+For issues, questions, or suggestions:
+- Check the troubleshooting section above
+- Review the Linera documentation
+- Open an issue on the repository
+
+## 🎯 Future Enhancements
+
+Potential improvements for future versions:
+
+- [ ] Group messaging
+- [ ] Message encryption
+- [ ] Advanced search and filtering
+- [ ] Message reactions and replies
+- [ ] File sharing support
+- [ ] Video messages
+- [ ] Multi-language support
+- [ ] Advanced analytics dashboard
+- [ ] Mobile app (React Native)
+- [ ] Social media integration
+- [ ] NFT integration for avatars
+- [ ] Token rewards for activity
+- [ ] Advanced moderation tools
+
+---
+
+**Built with ❤️ for the Linera Buildathon**

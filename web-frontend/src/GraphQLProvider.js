@@ -10,11 +10,6 @@ import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient } from "graphql-ws";
 import { getMainDefinition } from "@apollo/client/utilities";
 
-function GraphQLProvider({ chainId, applicationId, port, host = 'localhost', children }) {
-  let client = apolloClient(chainId, applicationId, port, host);
-  return <ApolloProvider client={client}>{children}</ApolloProvider>;
-}
-
 function apolloClient(chainId, applicationId, port, host = 'localhost') {
   const isValidChainId = (chainId) => {
     if (!chainId) return false;
@@ -128,6 +123,11 @@ function apolloClient(chainId, applicationId, port, host = 'localhost') {
       }
     },
   });
+}
+
+function GraphQLProvider({ chainId, applicationId, port, host = 'localhost', children }) {
+  let client = apolloClient(chainId, applicationId, port, host);
+  return <ApolloProvider client={client}>{children}</ApolloProvider>;
 }
 
 export default GraphQLProvider;

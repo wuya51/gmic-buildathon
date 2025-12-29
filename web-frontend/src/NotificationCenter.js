@@ -162,11 +162,11 @@ const NotificationCenter = ({
     
     prevGmRecordsRef.current = [...gmRecords];
 
-    newRecords.forEach(record => {
+    newRecords.forEach((record, index) => {
       if (!record || !record.sender) return;
       
       const position = getRandomPosition();
-      const recordId = `${record.sender}-${record.timestamp || Date.now()}`;
+      const recordId = `${record.sender}-${record.timestamp || Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
       setActiveBalls(prev => {
         if (prev.some(b => b.id === recordId)) return prev;

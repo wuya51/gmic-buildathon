@@ -96,7 +96,11 @@ export const GET_GM_EVENTS = gql`
   query GetGmEvents($sender: AccountOwner!) {
     getGmEvents(sender: $sender) {
       sender
+      senderName
+      senderAvatar
       recipient
+      recipientName
+      recipientAvatar
       timestamp
       content {
         content
@@ -110,7 +114,11 @@ export const GET_STREAM_EVENTS = gql`
   query GetStreamEvents($chainId: ChainId!) {
     getStreamEvents(chainId: $chainId) {
       sender
+      senderName
+      senderAvatar
       recipient
+      recipientName
+      recipientAvatar
       timestamp
       content {
         content
@@ -124,7 +132,11 @@ export const GET_RECEIVED_GM_EVENTS = gql`
   query GetReceivedGmEvents($recipient: AccountOwner!) {
     getReceivedGmEvents(recipient: $recipient) {
       sender
+      senderName
+      senderAvatar
       recipient
+      recipientName
+      recipientAvatar
       timestamp
       content {
         content
@@ -155,6 +167,24 @@ export const SET_COOLDOWN_ENABLED = gql`
     setCooldownEnabled(caller: $caller, enabled: $enabled) {
       success
       message
+    }
+  }
+`;
+
+export const SET_USER_PROFILE = gql`
+  mutation SetUserProfile($user: AccountOwner!, $profile: UserProfileInput!) {
+    setUserProfile(user: $user, profile: $profile) {
+      success
+      message
+    }
+  }
+`;
+
+export const GET_USER_PROFILE = gql`
+  query GetUserProfile($user: AccountOwner!) {
+    getUserProfile(user: $user) {
+      name
+      avatar
     }
   }
 `;

@@ -1,4 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useWallet, WalletConnector } from './WalletProvider';
+import { DynamicConnectButton, useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import "./App.css";
+import GMOperations, { useGMAdditionalData, useLeaderboardData, useCooldownData, useUserData } from './GMOperations';
+import NotificationCenter from './NotificationCenter';
+import Leaderboard from './Leaderboard';
+import GifPicker from './components/GifPicker';
+import EmojiPicker from './components/EmojiPicker';
+import ChatHistory from './components/ChatHistory';
+import UserProfile from './components/UserProfile';
 
 const KeyboardIcon = ({ className = "" }) => (
   <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -17,16 +27,6 @@ const VoiceIcon = ({ className = "" }) => (
     <line x1="8" y1="23" x2="16" y2="23"></line>
   </svg>
 );
-import { useWallet, WalletConnector } from './WalletProvider';
-import { DynamicConnectButton, useDynamicContext } from '@dynamic-labs/sdk-react-core';
-import "./App.css";
-import GMOperations, { useGMAdditionalData, useLeaderboardData, useCooldownData, useUserData } from './GMOperations';
-import NotificationCenter from './NotificationCenter';
-import Leaderboard from './Leaderboard';
-import GifPicker from './components/GifPicker';
-import EmojiPicker from './components/EmojiPicker';
-
-import ChatHistory from './components/ChatHistory';
 
 window.onerror = function(message, source, lineno, colno, error) {
   console.error('Global error captured:', {
@@ -59,22 +59,57 @@ const formatAccountOwner = (address) => {
 };
 
 const formatAddressForDisplay = (address, isMobile = false, startChars = 6, endChars = 4) => {
-  if (!address) return '';
-  const isMobileView = isMobile || window.innerWidth <= 768;  
-  return isMobileView 
-    ? `${address.slice(0, startChars)}...${address.slice(-endChars)}`
-    : address;
-};
-
-const isButtonDisabled = (operationStatus, currentAccount, gmOps, cooldownRemaining = 0, localCooldownEnabled = false, isConnected = false) => {
-    return operationStatus === "processing" || 
-      !isConnected ||
-      (currentAccount && !gmOps.isValidAccountOwner(currentAccount)) || 
-      (currentAccount && localCooldownEnabled && cooldownRemaining > 0);
+    if (!address) return '';
+    const isMobileView = isMobile || window.innerWidth <= 768;
+    return isMobileView
+      ? `${address.slice(0, startChars)}...${address.slice(-endChars)}`
+      : address;
   };
 
-  const MAX_MESSAGE_LENGTH = 280;
-  const WARNING_THRESHOLD = 250;
+const MAX_MESSAGE_LENGTH = 280;
+const WARNING_THRESHOLD = 250;
+
+const uploadToPinata = async (file, filename) => {
+  if (!file) return { success: false, error: 'No file provided' };
+  
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    if (filename) {
+      formData.append('filename', filename);
+    }
+    
+    const apiKey = import.meta.env.VITE_PINATA_API_KEY;
+    const secretApiKey = import.meta.env.VITE_PINATA_SECRET_API_KEY;
+    
+    const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+      method: 'POST',
+      headers: {
+        'pinata_api_key': apiKey,
+        'pinata_secret_api_key': secretApiKey,
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Pinata upload failed: ${response.statusText} - ${errorText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (result.IpfsHash) {
+      const ipfsUrl = `https://salmon-main-vole-335.mypinata.cloud/ipfs/${result.IpfsHash}`;
+      return { success: true, url: ipfsUrl };
+    } else {
+      throw new Error('No IPFS hash returned from Pinata');
+    }
+  } catch (error) {
+    console.error('Upload to Pinata error:', error);
+    return { success: false, error: error.message };
+  }
+};
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -130,9 +165,60 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   const forceUpdateRef = useRef(0);
   const cooldownRemainingRef = useRef(0);
   const activeTabRef = useRef('unknown');
+  const userProfilesCache = useRef(new Map());
+  const getUserProfile = useCallback(async (address) => {
+    if (!address) return null;
+    if (userProfilesCache.current.has(address)) {
+      return userProfilesCache.current.get(address);
+    }
+    try {
+      const defaultContacts = {
+        '0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959': {
+          name: 'wuya51',
+          avatar: '👤'
+        },
+        [import.meta.env.VITE_OWNER_ID]: {
+          name: 'GMIC',
+          avatar: '🤖'
+        }
+      };
+      
+      if (ownerId) {
+        defaultContacts[ownerId] = {
+          name: 'GMIC Owner',
+          avatar: '👑'
+        };
+      }
+      if (defaultContacts[address]) {
+        userProfilesCache.current.set(address, defaultContacts[address]);
+        return defaultContacts[address];
+      }
+      const defaultProfile = {
+        name: formatAddressForDisplay(address),
+        avatar: '👤'
+      };
+      userProfilesCache.current.set(address, defaultProfile);
+      return defaultProfile;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      const defaultProfile = {
+        name: formatAddressForDisplay(address),
+        avatar: '👤'
+      };
+      userProfilesCache.current.set(address, defaultProfile);
+      return defaultProfile;
+    }
+  }, [ownerId]);
   
   const pageLoadTime = useRef(0);
   const [urlInviter, setUrlInviter] = useState(null);
+  
+  const isButtonDisabled = (operationStatus, currentAccount, gmOps, cooldownRemaining = 0, localCooldownEnabled = false, isConnected = false) => {
+    return operationStatus === "processing" || 
+      !isConnected ||
+      (currentAccount && !gmOps.isValidAccountOwner(currentAccount)) || 
+      (currentAccount && localCooldownEnabled && cooldownRemaining > 0);
+  };
   
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -148,9 +234,17 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     
     pageLoadTime.current = Date.now();
     pageLoadTimestampRef.current = pageLoadTime.current;
-  }, []);
+  }, [ownerId]);
   
   const [connectionError, setConnectionError] = useState("");
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [editUsername, setEditUsername] = useState("");
+  const [editAvatar, setEditAvatar] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState("");
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [profileSaveStatus, setProfileSaveStatus] = useState(null);
+  const [profileSaveMessage, setProfileSaveMessage] = useState("");
 
   
   let walletState = {};
@@ -265,7 +359,11 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       avatar: '👤'
     }
   ]);
+
+
+  const [currentUserOnChainData, setCurrentUserOnChainData] = useState({});
   const [currentChatPartner, setCurrentChatPartner] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
 
   const handleChatPartnerChange = (partnerAddress) => {
     if (partnerAddress) {
@@ -298,7 +396,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     setIsRecording(false);
     setRecordingTime(0);
     setShowVoicePopup(false);
-  }, []);
+  }, [ownerId]);
   
   const addEmojiToMessage = (emoji) => {
     setCustomMessage(prev => prev + emoji);
@@ -467,7 +565,6 @@ function App({ chainId, appId, ownerId, inviter, port }) {
 
       const PINATA_API_KEY = import.meta.env.VITE_PINATA_API_KEY;
       const PINATA_SECRET_API_KEY = import.meta.env.VITE_PINATA_SECRET_API_KEY;
-
       
       if (!PINATA_API_KEY || !PINATA_SECRET_API_KEY) {
         throw new Error('Pinata API keys missing in environment variables');
@@ -547,7 +644,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       });
       
       if (response.ok) {
-      } else {
+  
       }
     } catch (error) {
     }
@@ -605,7 +702,9 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   activeTabRef.current = activeTab;
   
   const addNotification = useCallback((message, type = 'info') => {
-    const id = Date.now().toString();
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 9);
+    const id = `${timestamp}-${randomSuffix}`;
     const newNotification = {
       id,
       message,
@@ -634,7 +733,53 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   const removeNotification = useCallback((id) => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   }, []);
-  
+
+  const handleAvatarFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      addNotification('Please select a valid image file', 'error');
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      addNotification('Image size should be less than 5MB', 'error');
+      return;
+    }
+    
+    setSelectedAvatarFile(file);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setAvatarPreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadAvatarToPinata = async (file) => {
+    try {
+      setUploading(true);
+      
+      const timestamp = Date.now();
+      const filename = `avatar-${timestamp}-${currentAccount.substring(2, 10)}.${file.name.split('.').pop()}`;
+      
+      const result = await uploadToPinata(file, filename);
+      
+      if (result && result.success && result.url) {
+        return result.url;
+      } else {
+        throw new Error('Avatar upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      addNotification('Failed to upload avatar', 'error');
+      throw error;
+    } finally {
+      setUploading(false);
+    }
+  };
+ 
   const handleCustomMessageToggle = useCallback(() => {
     setCustomMessageEnabled(!customMessageEnabled);
     if (!customMessageEnabled) {
@@ -736,10 +881,34 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       setCurrentAccount(null);
     }
   }, [connectedAccount]);
+
+  useEffect(() => {
+    if (currentAccount) {
+      try {
+        const savedProfile = localStorage.getItem(`userProfile_${currentAccount}`);
+        if (savedProfile) {
+          const profile = JSON.parse(savedProfile);
+          setUserProfile(profile);
+          setEditUsername(profile.username || '');
+          setEditAvatar(profile.avatar || '');
+        } else {
+          setUserProfile(null);
+          setEditUsername('');
+          setEditAvatar('');
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+        setUserProfile(null);
+      }
+    } else {
+      setUserProfile(null);
+      setEditUsername('');
+      setEditAvatar('');
+    }
+  }, [currentAccount]);
   const currentChainId = connectedChainId;
   const currentIsConnected = isConnected;
 
-  // Log wallet connection status changes
   useEffect(() => {
     console.log('Wallet connection status changed:', {
       isConnected: currentIsConnected,
@@ -1194,6 +1363,8 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       successMessage = "24-hour limit updated successfully!";
     } else if (mutationType === 'invitation') {
       successMessage = "Invitation operation completed successfully!";
+    } else if (mutationType === 'setUserProfile') {
+      return;
     }
     
     addNotification(successMessage, "success");
@@ -1698,7 +1869,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     gmOps.handleClaimInvitationRewards();
   }, [gmOps]);
 
-  const handleSendGM = useCallback(async (messageType = "text", contentUrl = null) => {
+  const handleSendGM = useCallback(async (messageType = "text", contentUrl = null, voiceFile = null) => {
 
     if (isSendingMessage) {
       return;
@@ -1753,6 +1924,24 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       if (contentUrl) {
         messageContent = contentUrl;
 
+      } else if (voiceFile) {
+        try {
+          const timestamp = Date.now();
+          const filename = `voice-${timestamp}-${currentAccount ? currentAccount.substring(2, 10) : 'user'}.${voiceFile.name.split('.').pop()}`;
+          
+          const result = await uploadToPinata(voiceFile, filename);
+          
+          if (result && result.success && result.url) {
+            messageContent = result.url;
+          } else {
+            throw new Error('Voice upload failed');
+          }
+        } catch (error) {
+          console.error('Voice upload error:', error);
+          addNotification('Failed to upload voice message', 'error');
+          setIsSendingMessage(false);
+          return;
+        }
       } else {
         messageContent = '🎤 Voice Message';
 
@@ -1818,9 +2007,216 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     }
   }, [currentAccount, currentIsConnected, addNotification, recipientAddress, currentChatPartner]);
 
+
+
+  const uploadFileToCloud = async (file) => {
+
+    if (!file || !(file instanceof File)) {
+      console.error('Invalid file object, expected File:', file);
+      return null;
+    }
+    
+    if (!file.name) {
+      console.error('File has no name property:', file);
+      return null;
+    }
+    
+    try {
+      setUploading(true);
+      
+      const timestamp = Date.now();
+      const filename = `avatar-${timestamp}-${currentAccount ? currentAccount.substring(2, 10) : 'user'}.${file.name.split('.').pop()}`;
+      
+      const result = await uploadToPinata(file, filename);
+      
+      if (result && result.success && result.url) {
+        return result.url;
+      } else {
+        throw new Error('Avatar upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      addNotification('Failed to upload avatar', 'error');
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEditAvatar(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setAvatarPreview(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const validateUsername = (username) => {
+    if (!username || username.trim() === '') {
+      return { isValid: false, error: 'Username cannot be empty' };
+    }
+    
+    if (username.length < 1 || username.length > 20) {
+      return { isValid: false, error: 'Username must be 1-20 characters long' };
+    }
+    
+    const validPattern = /^[a-zA-Z0-9_\-\u4e00-\u9fa5]+$/;
+    if (!validPattern.test(username)) {
+      return { isValid: false, error: 'Username can only contain letters, numbers, underscores, hyphens, and Chinese characters' };
+    }
+    
+    return { isValid: true, error: '' };
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setProfileSaveStatus(null);
+      setProfileSaveMessage("");
+      
+      const validation = validateUsername(editUsername || userProfile?.username || '');
+      if (!validation.isValid) {
+        setProfileSaveStatus('error');
+        setProfileSaveMessage(validation.error);
+        addNotification(validation.error, 'error');
+        return;
+      }
+      
+      let avatarUrl = userProfile?.avatar;
+      
+      if (editAvatar) {
+        if (editAvatar instanceof File) {
+          const uploadedUrl = await uploadFileToCloud(editAvatar);
+          if (uploadedUrl) {
+            avatarUrl = uploadedUrl;
+          } else {
+            addNotification('Avatar upload failed, keeping previous avatar', 'warning');
+          }
+        } else if (typeof editAvatar === 'string' && editAvatar.startsWith('http')) {
+          avatarUrl = editAvatar.trim().replace(/^`+|`+$/g, '').trim();
+        }
+      }
+      
+      const updatedProfile = {
+        username: editUsername || userProfile?.username || '',
+        avatar: avatarUrl || ''
+      };
+      
+      if (currentAccount) {
+        localStorage.setItem(`userProfile_${currentAccount}`, JSON.stringify(updatedProfile));
+      }
+      
+      setUserProfile(updatedProfile);
+      
+      if (gmOps?.handleSetUserProfile && currentAccount) {
+        const result = await gmOps.handleSetUserProfile(
+          editUsername || userProfile?.username || '',
+          avatarUrl || ''
+        );
+        
+        const success = result !== null && result !== undefined;
+        const message = 'Profile updated successfully!';
+        
+        if (success) {
+          setProfileSaveStatus('success');
+          setProfileSaveMessage(message);
+          addNotification(message, 'success');
+        } else {
+          const errorMessage = 'Failed to update profile';
+          setProfileSaveStatus('error');
+          setProfileSaveMessage(errorMessage);
+          addNotification(errorMessage, 'error');
+        }
+      } else {
+        setProfileSaveStatus('success');
+        setProfileSaveMessage('Profile updated successfully!');
+        addNotification('Profile updated successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      setProfileSaveStatus('error');
+      setProfileSaveMessage('Failed to update profile: ' + error.message);
+      addNotification('Failed to update profile', 'error');
+    }
+  };
+
+  const handleCancelProfileEdit = () => {
+    setShowProfileSettings(false);
+    setAvatarPreview('');
+    setSelectedAvatarFile(null);
+    setProfileSaveStatus(null);
+    setProfileSaveMessage("");
+  };
+
   return (
     <ErrorBoundary>
       <div>
+        {showProfileSettings && (
+          <div className="modal-overlay">
+            <div className="profile-settings-modal">
+              <div className="modal-header">
+                <h3>Edit Profile</h3>
+                <button className="modal-close" onClick={handleCancelProfileEdit}>×</button>
+              </div>
+              
+              {profileSaveStatus && profileSaveMessage && (
+                <div className={`profile-save-message ${profileSaveStatus}`}>
+                  {profileSaveMessage}
+                </div>
+              )}
+              
+              <div className="form-group">
+                <label>Username:</label>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  placeholder="Enter username"
+                  maxLength={20}
+                />
+              </div>
+              <div className="form-group">
+                <label>Profile Photo:</label>
+                <div className="avatar-upload-container">
+                  <input
+                    type="file"
+                    id="avatar-upload"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    style={{ display: 'none' }}
+                  />
+                  <div 
+                    className="avatar-preview" 
+                    onClick={() => document.getElementById('avatar-upload').click()}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {avatarPreview ? (
+                      <img src={avatarPreview} alt="Preview" />
+                    ) : editAvatar ? (
+                      <img src={editAvatar} alt="Current avatar" />
+                    ) : (
+                      <div className="avatar-placeholder">No photo</div>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => document.getElementById('avatar-upload').click()} className="upload-button">
+                    Upload Photo
+                  </button>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button onClick={handleSaveProfile} disabled={uploading}>
+                  {uploading ? 'Uploading...' : 'Save'}
+                </button>
+                <button onClick={handleCancelProfileEdit} disabled={uploading}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <button 
           className="referral-floating-btn"
           onClick={handleToggleShareReferral}
@@ -2032,6 +2428,30 @@ function App({ chainId, appId, ownerId, inviter, port }) {
 
             {activeTab === 'settings' && currentIsConnected && (
               <div className="card wallet-card">
+                <div className="user-profile-section">
+                  <div className="user-profile-content">
+                    <UserProfile 
+                      address={currentAccount}
+                      userData={userProfile}
+                      onChainUserData={currentUserOnChainData}
+                      size={64}
+                      showAddress={true}
+                      truncateAddress={true}
+                    />
+                    <button className="edit-profile-btn" onClick={() => {
+                      if (userProfile) {
+                        setEditUsername(userProfile.username || '');
+                        setEditAvatar(userProfile.avatar || '');
+                      } else {
+                        setEditUsername('');
+                        setEditAvatar('');
+                      }
+                      setShowProfileSettings(true);
+                    }}>
+                      Edit Profile
+                    </button>
+                  </div>
+                </div>
                 <div className="wallet-info">
                   <div className="wallet-status">
                     <div className="wallet-item">
@@ -2243,7 +2663,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                             }}
                           />
                           <label htmlFor="contract-chain" className="chain-label">
-                            <span className="chain-name">Contract Chain</span>
+                            <span className="chain-name">Contract Chain：</span>
                             <span className="chain-address">
                               {formatAddressForDisplay(chainId, isMobile, 8, 6)}
                             </span>
@@ -2448,7 +2868,13 @@ function App({ chainId, appId, ownerId, inviter, port }) {
 
                                     }}
                                   >
-                                    <span className="contact-avatar">👤</span>
+                                    <span className="contact-avatar">
+                                      <img 
+                                        src="https://salmon-main-vole-335.mypinata.cloud/ipfs/QmXNeLnSbwDbQUUCh9bTP8H72votCHMEXxtfoMqhXPB4g1" 
+                                        alt="Avatar" 
+                                        className="avatar-image"
+                                      />
+                                    </span>
                                     <span className="contact-name">wuya51</span>
                                     <span className="contact-address">0xfe60...f959</span>
                                   </div>
@@ -2594,6 +3020,8 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                 />
               </div>
             )}
+            
+            
           </div>
         </div>
     
@@ -2637,6 +3065,80 @@ function App({ chainId, appId, ownerId, inviter, port }) {
         gmOperations={gmOps}
         chainId={chainId}
       />
+      
+      {showProfileSettings && (
+        <div className="profile-settings-modal">
+          <div className="profile-settings-content">
+            <div className="profile-settings-header">
+              <h3>Edit Profile</h3>
+              <button 
+                className="close-modal-btn"
+                onClick={() => setShowProfileSettings(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="avatar-upload-section">
+              <div className="avatar-preview">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="Avatar Preview" className="avatar-image" />
+                ) : (
+                  <div className="avatar-placeholder">
+                    {editUsername ? editUsername.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
+              </div>
+              
+              <div className="avatar-upload-controls">
+                <input
+                  type="file"
+                  id="avatar-upload"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleAvatarFileSelect}
+                />
+                <label htmlFor="avatar-upload" className="upload-avatar-btn">
+                  Choose Avatar
+                </label>
+                {selectedAvatarFile && (
+                  <span className="selected-file-name">
+                    {selectedAvatarFile.name}
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            <div className="username-input-section">
+              <label htmlFor="username-input">Username</label>
+              <input
+                id="username-input"
+                type="text"
+                placeholder="Enter your username"
+                value={editUsername}
+                onChange={(e) => setEditUsername(e.target.value)}
+                maxLength={20}
+              />
+            </div>
+            
+            <div className="profile-settings-actions">
+              <button 
+                className="save-profile-btn"
+                onClick={handleSaveProfile}
+                disabled={uploading || !editUsername.trim()}
+              >
+                {uploading ? 'Uploading...' : 'Save Profile'}
+              </button>
+              <button 
+                className="cancel-profile-btn"
+                onClick={handleCancelProfileEdit}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </ErrorBoundary>
   );
 }

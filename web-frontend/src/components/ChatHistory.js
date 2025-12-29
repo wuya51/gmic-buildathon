@@ -420,14 +420,36 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
               return null;
             }
             
-            const getContactInfo = (address) => {
+            const getContactInfo = (address, event = null) => {
+              if (event) {
+                if (address === event.sender && event.senderName) {
+                  return { 
+                    name: event.senderName, 
+                    avatar: event.senderAvatar || '👤' 
+                  };
+                }
+                if (address === event.recipient && event.recipientName) {
+                  return { 
+                    name: event.recipientName, 
+                    avatar: event.recipientAvatar || '👤' 
+                  };
+                }
+              }
+              
               if (address === '0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959') {
                 return { name: 'wuya51', avatar: '👤' };
               }
               return { name: '', avatar: '👤' };
             };
             
-            const contactInfo = getContactInfo(chat.partnerAddress);
+            const renderAvatar = (avatar) => {
+              if (avatar && (avatar.startsWith('http://') || avatar.startsWith('https://'))) {
+                return <img src={avatar} alt="Avatar" className="avatar-image" />;
+              }
+              return <span className="avatar-icon">{avatar}</span>;
+            };
+            
+            const contactInfo = getContactInfo(chat.partnerAddress, latestMessage);
 
             
             return (
@@ -440,25 +462,32 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
                   onClick={() => toggleChatExpansion(chat.partnerAddress)}
                 >
                   <div className="chat-header">
-                    <div className="partner-info">
-                      <span className="partner-avatar">{contactInfo.avatar}</span>
-                      <span className="partner-name">{contactInfo.name}</span>
-                      <span className="partner-address">
-                        {chat.partnerAddress.substring(0, 6)}...{chat.partnerAddress.substring(chat.partnerAddress.length - 4)}
+                    <div className="chat-left">
+                      <span className="partner-avatar">{renderAvatar(contactInfo.avatar)}</span>
+                      <div className="partner-details">
+                        <div className="partner-info-row">
+                          <span className="partner-name">
+                            {contactInfo.name || `${chat.partnerAddress.substring(0, 6)}...${chat.partnerAddress.substring(chat.partnerAddress.length - 4)}`}
+                          </span>
+                          {contactInfo.name && (
+                            <span className="partner-address">
+                              :{chat.partnerAddress.substring(0, 6)}...{chat.partnerAddress.substring(chat.partnerAddress.length - 4)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="latest-message">
+                          {latestMessage && typeof latestMessage === 'object' ? renderMessageContent(latestMessage) : <span className="error-message">[Invalid message]</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="chat-right">
+                      <span className="chat-time">
+                        {new Date(normalizeTimestamp(latestMessage.timestamp)).toLocaleTimeString()}
                       </span>
                       <span className="message-count">
                         {chat.messageCount} 💬
                       </span>
-                      <span className="chat-time">
-                        {new Date(normalizeTimestamp(latestMessage.timestamp)).toLocaleTimeString()}
-                      </span>
-                      <span className="expand-icon">
-                        {isExpanded ? '▼' : '▶'}
-                      </span>
                     </div>
-                  </div>
-                  <div className="latest-message">
-                    {latestMessage && typeof latestMessage === 'object' ? renderMessageContent(latestMessage) : <span className="error-message">[Invalid message]</span>}
                   </div>
                 </div>
                 
@@ -472,8 +501,10 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
                         return null;
                       }
                       
+                      const senderContactInfo = getContactInfo(senderAddress, message);
                       const displayAddress = `${senderAddress.substring(0, 6)}...${senderAddress.substring(senderAddress.length - 4)}`;
                       const senderLabel = isSent ? 'Me' : 'Them';
+                      const displayName = senderContactInfo.name || senderLabel;
                       
                       return (
                         <div 
@@ -482,13 +513,14 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
                         >
                           {!isSent && (
                             <div className="message-avatar">
-                              <span className="avatar-icon">👤</span>
+                              {renderAvatar(senderContactInfo.avatar)}
                             </div>
                           )}
                           
                           <div className="message-content-wrapper">
                             <div className={`message-info ${isSent ? 'sent' : 'received'}`}>
-                              {isSent && <span className="message-sender">{senderLabel}</span>}
+                              {isSent && <span className="message-sender">{displayName}</span>}
+                              {!isSent && <span className="message-sender">{displayName}</span>}
                               <span className="message-time">
                                 {new Date(normalizeTimestamp(message.timestamp)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                               </span>
@@ -500,7 +532,7 @@ const ChatHistory = ({ currentAccount, isMobile, gmOps, currentChatPartner = nul
                           
                           {isSent && (
                             <div className="message-avatar">
-                              <span className="avatar-icon">👤</span>
+                              {renderAvatar(senderContactInfo.avatar)}
                             </div>
                           )}
                         </div>

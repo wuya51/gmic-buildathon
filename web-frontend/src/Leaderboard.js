@@ -2,29 +2,29 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useLeaderboardData } from './GMOperations';
 
 const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) => {
-  const leaderboardData = useLeaderboardData();
+  const { leaderboardData, invitationLeaderboardData, refetchLeaderboard, refetchInvitationLeaderboard, getUserProfile } = useLeaderboardData();
   const stableLeaderboardData = useMemo(() => {
-    if (!leaderboardData.leaderboardData) return null;
-    return JSON.parse(JSON.stringify(leaderboardData.leaderboardData));
-  }, [JSON.stringify(leaderboardData.leaderboardData)]);
+    if (!leaderboardData) return null;
+    return JSON.parse(JSON.stringify(leaderboardData));
+  }, [JSON.stringify(leaderboardData)]);
   const stableInvitationLeaderboardData = useMemo(() => {
-    if (!leaderboardData.invitationLeaderboardData) return null;
-    return JSON.parse(JSON.stringify(leaderboardData.invitationLeaderboardData));
-  }, [JSON.stringify(leaderboardData.invitationLeaderboardData)]);
+    if (!invitationLeaderboardData) return null;
+    return JSON.parse(JSON.stringify(invitationLeaderboardData));
+  }, [JSON.stringify(invitationLeaderboardData)]);
   const stableRefetchLeaderboard = useCallback(() => {
-    leaderboardData.refetchLeaderboard && leaderboardData.refetchLeaderboard();
+    refetchLeaderboard && refetchLeaderboard();
   }, []);
   
   const stableRefetchInvitationLeaderboard = useCallback(() => {
-    leaderboardData.refetchInvitationLeaderboard && leaderboardData.refetchInvitationLeaderboard();
+    refetchInvitationLeaderboard && refetchInvitationLeaderboard();
   }, []);
 
   useEffect(() => {
-    if (leaderboardData.refetchLeaderboard) {
-      leaderboardData.refetchLeaderboard();
+    if (refetchLeaderboard) {
+      refetchLeaderboard();
     }
-    if (leaderboardData.refetchInvitationLeaderboard) {
-      leaderboardData.refetchInvitationLeaderboard();
+    if (refetchInvitationLeaderboard) {
+      refetchInvitationLeaderboard();
     }
   }, []);
 
@@ -33,50 +33,70 @@ const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) =
       return null;
     }
     
-    return stableLeaderboardData.getTopUsers.map((entry, index) => (
-      <tr key={`user-${entry.user}`} data-user={entry.user} className={entry.user === currentAccount ? "current-user" : ""}>
-        <td>{index + 1}</td>
-        <td>
-          <span 
-            className="address-simple" 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              copyToClipboard(entry.user, e);
-            }}
-          >
-            {isMobile ? `${entry.user.slice(0, 6)}...${entry.user.slice(-4)}` : entry.user}
-          </span>
-        </td>
-        <td>{entry.count}</td>
-      </tr>
-    ));
-  }, [stableLeaderboardData?.getTopUsers, currentAccount, isMobile, copyToClipboard]);
+    return stableLeaderboardData.getTopUsers.map((entry, index) => {
+      const userProfile = getUserProfile ? getUserProfile(entry.user) : null;
+      const shortAddress = `${entry.user.slice(0, 6)}...${entry.user.slice(-4)}`;
+      const displayName = userProfile?.name ? `${userProfile.name}: ${shortAddress}` : shortAddress;
+      const avatarUrl = userProfile?.avatar || null;
+
+      return (
+        <tr key={`user-${entry.user}`} data-user={entry.user} className={entry.user === currentAccount ? "current-user" : ""}>
+          <td>{index + 1}</td>
+          <td>
+            <div className="user-info">
+              {avatarUrl && <img src={avatarUrl} alt="avatar" className="user-avatar" />}
+              <span
+                className="address-simple"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  copyToClipboard(entry.user, e);
+                }}
+              >
+                {displayName}
+              </span>
+            </div>
+          </td>
+          <td>{entry.count}</td>
+        </tr>
+      );
+    });
+  }, [stableLeaderboardData?.getTopUsers, currentAccount, isMobile, copyToClipboard, getUserProfile]);
   
   const invitationLeaderboardItems = useMemo(() => {
     if (!stableInvitationLeaderboardData?.getTopInvitors || stableInvitationLeaderboardData.getTopInvitors.length === 0) {
       return null;
     }
     
-    return stableInvitationLeaderboardData.getTopInvitors.map((entry, index) => (
-      <tr key={`invitor-${entry.user}`} data-user={entry.user} className={entry.user === currentAccount ? "current-user" : ""}>
-        <td>{index + 1}</td>
-        <td>
-          <span 
-            className="address-simple" 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              copyToClipboard(entry.user, e);
-            }}
-          >
-            {isMobile ? `${entry.user.slice(0, 6)}...${entry.user.slice(-4)}` : entry.user}
-          </span>
-        </td>
-        <td>{entry.count}</td>
-      </tr>
-    ));
-  }, [stableInvitationLeaderboardData?.getTopInvitors, currentAccount, isMobile, copyToClipboard]);
+    return stableInvitationLeaderboardData.getTopInvitors.map((entry, index) => {
+      const userProfile = getUserProfile ? getUserProfile(entry.user) : null;
+      const shortAddress = `${entry.user.slice(0, 6)}...${entry.user.slice(-4)}`;
+      const displayName = userProfile?.name ? `${userProfile.name}: ${shortAddress}` : shortAddress;
+      const avatarUrl = userProfile?.avatar || null;
+
+      return (
+        <tr key={`invitor-${entry.user}`} data-user={entry.user} className={entry.user === currentAccount ? "current-user" : ""}>
+          <td>{index + 1}</td>
+          <td>
+            <div className="user-info">
+              {avatarUrl && <img src={avatarUrl} alt="avatar" className="user-avatar" />}
+              <span
+                className="address-simple"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  copyToClipboard(entry.user, e);
+                }}
+              >
+                {displayName}
+              </span>
+            </div>
+          </td>
+          <td>{entry.count}</td>
+        </tr>
+      );
+    });
+  }, [stableInvitationLeaderboardData?.getTopInvitors, currentAccount, isMobile, copyToClipboard, getUserProfile]);
 
   return (
     <div className="card leaderboard-card">

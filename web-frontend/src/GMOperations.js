@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import { useQuery, useMutation, useSubscription, useLazyQuery } from '@apollo/client';
 import { useWallet } from './WalletProvider';
 import {
   GET_GM_STATS, 
@@ -17,7 +17,9 @@ import {
   SEND_GM, 
   SET_COOLDOWN_ENABLED,
   SUBSCRIBE_GM_EVENTS,
-  GET_RECEIVED_GM_EVENTS
+  GET_RECEIVED_GM_EVENTS,
+  SET_USER_PROFILE,
+  GET_USER_PROFILE
 } from './queries';
 
 const isValidAccountOwner = (owner) => {
@@ -478,6 +480,18 @@ const GMOperations = ({
     },
   });
 
+  const [setUserProfile, { data: setUserProfileData, error: setUserProfileError }] = useMutation(SET_USER_PROFILE, {
+    update: () => {},
+    errorPolicy: 'ignore',
+    fetchPolicy: 'no-cache',
+  });
+
+  const { data: userProfileData, refetch: refetchUserProfile } = useQuery(GET_USER_PROFILE, {
+    variables: { user: formatAccountOwner(currentAccount) },
+    skip: !currentIsConnected || !currentAccount,
+    fetchPolicy: 'cache-first',
+  });
+
   useEffect(() => {
     if (sendGmData) {
       const result = typeof sendGmData === 'string' ? { hash: sendGmData } : sendGmData;
@@ -505,6 +519,19 @@ const GMOperations = ({
       onMutationError(setCooldownEnabledError);
     }
   }, [setCooldownEnabledError, onMutationError]);
+
+  useEffect(() => {
+    if (setUserProfileData) {
+      const result = typeof setUserProfileData === 'string' ? { hash: setUserProfileData } : setUserProfileData;
+      onMutationComplete(result, 'setUserProfile');
+    }
+  }, [setUserProfileData, onMutationComplete]);
+
+  useEffect(() => {
+    if (setUserProfileError) {
+      onMutationError(setUserProfileError);
+    }
+  }, [setUserProfileError, onMutationError]);
 
   const handleSendGM = useCallback(async (content = "Gmicrochains", recipient = null, inviter = null, messageType = "text") => {
     if (!isValidAccountOwner(currentAccount)) {
@@ -591,6 +618,36 @@ const GMOperations = ({
     }
   }, [currentAccount, setCooldownEnabled, onMutationError, setMessage, refetchCooldownStatus, refetchCooldownCheck]);
 
+  const handleSetUserProfile = useCallback(async (userName, avatarData) => {
+    if (!isValidAccountOwner(currentAccount)) {
+      setMessage("Invalid wallet account", "error");
+      setOperationStatus("error");
+      return;
+    }
+    
+    try {
+      setOperationStatus("processing");
+      const result = await setUserProfile({
+        variables: {
+          user: formatAccountOwner(currentAccount),
+          profile: {
+            name: userName,
+            avatar: avatarData
+          }
+        }
+      });
+      
+      if (result && result.data) {
+        onMutationComplete(result.data, 'setUserProfile');
+      }
+      
+      return result;
+    } catch (error) {
+      onMutationError(error);
+      return null;
+    }
+  }, [currentAccount, setUserProfile, onMutationComplete, onMutationError, setMessage]);
+
   const validateRecipientAddress = useCallback((address) => {
     if (!address) {
       return { isValid: true, error: "" };
@@ -664,6 +721,7 @@ const GMOperations = ({
     refetchInvitationRewards,
     handleSendGM,
     handleSetCooldownEnabled,
+    handleSetUserProfile,
     validateRecipientAddress,
     formatCooldown,
     isValidAccountOwner,
@@ -698,8 +756,53 @@ export const useLeaderboardData = () => {
     nextFetchPolicy: 'cache-first',
   });
 
+  const [userProfiles, setUserProfiles] = useState({});
+
+  const [getUserProfileQuery] = useLazyQuery(GET_USER_PROFILE, {
+    fetchPolicy: 'cache-first',
+  });
+
   const loading = leaderboardLoading || invitationLeaderboardLoading;
   const queryError = leaderboardError || invitationLeaderboardError;
+
+  const getUserProfiles = useCallback(async (addresses) => {
+    if (!addresses || addresses.length === 0) return {};
+    
+    const validAddresses = addresses.filter(addr => isValidAccountOwner(addr));
+    if (validAddresses.length === 0) return {};
+
+    try {
+      const profilePromises = validAddresses.map(async (address) => {
+        try {
+          const { data } = await getUserProfileQuery({
+            variables: { user: address }
+          });
+          
+          if (data?.getUserProfile) {
+            return { address, profile: data.getUserProfile };
+          }
+        } catch (error) {
+          console.error(`Error fetching profile for ${address}:`, error);
+        }
+        return { address, profile: { name: '', avatar: '' } };
+      });
+
+      const results = await Promise.all(profilePromises);
+      const profiles = {};
+      results.forEach(({ address, profile }) => {
+        profiles[address] = profile;
+      });
+      setUserProfiles(prev => ({ ...prev, ...profiles }));
+      return profiles;
+    } catch (error) {
+      console.error('Error fetching user profiles:', error);
+    }
+    return {};
+  }, [getUserProfileQuery]);
+
+  const getUserProfile = useCallback((address) => {
+    return userProfiles[address] || { name: '', avatar: '' };
+  }, [userProfiles]);
 
   useEffect(() => {
     if (leaderboardError) {
@@ -709,6 +812,30 @@ export const useLeaderboardData = () => {
       console.error('Error fetching invitation leaderboard:', invitationLeaderboardError);
     }
   }, [leaderboardError, invitationLeaderboardError]);
+
+  useEffect(() => {
+    const allAddresses = [];
+    
+    if (leaderboardData?.getTopUsers) {
+      leaderboardData.getTopUsers.forEach(entry => {
+        if (entry.user && isValidAccountOwner(entry.user)) {
+          allAddresses.push(entry.user);
+        }
+      });
+    }
+    
+    if (invitationLeaderboardData?.getTopInviters) {
+      invitationLeaderboardData.getTopInviters.forEach(entry => {
+        if (entry.user && isValidAccountOwner(entry.user)) {
+          allAddresses.push(entry.user);
+        }
+      });
+    }
+    
+    if (allAddresses.length > 0) {
+      getUserProfiles(allAddresses);
+    }
+  }, [leaderboardData, invitationLeaderboardData, getUserProfiles]);
 
   const stableRefetchLeaderboard = useCallback(() => {
     refetchLeaderboard && refetchLeaderboard();
@@ -721,17 +848,21 @@ export const useLeaderboardData = () => {
   return useMemo(() => ({  
     leaderboardData,
     invitationLeaderboardData,
+    userProfiles,
     loading,
     queryError,
     refetchLeaderboard: stableRefetchLeaderboard,
-    refetchInvitationLeaderboard: stableRefetchInvitationLeaderboard
+    refetchInvitationLeaderboard: stableRefetchInvitationLeaderboard,
+    getUserProfile
   }), [
     JSON.stringify(leaderboardData),
     JSON.stringify(invitationLeaderboardData),
+    userProfiles,
     loading,
     queryError,
     stableRefetchLeaderboard,
-    stableRefetchInvitationLeaderboard
+    stableRefetchInvitationLeaderboard,
+    getUserProfile
   ]);
 };
 

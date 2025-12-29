@@ -3,6 +3,7 @@
 mod state;
 use crate::state::GmState;
 use linera_sdk::{Contract, ContractRuntime};
+use linera_sdk::abi::WithContractAbi;
 use linera_sdk::linera_base_types::{AccountOwner, StreamName, StreamUpdate};
 use linera_sdk::views::RootView;
 use std::sync::Arc;
@@ -65,6 +66,7 @@ impl Contract for GmContract {
             }
             GmOperation::Gm { sender, recipient: _, content: _, inviter: _ } => sender.clone(),
             GmOperation::ClaimInvitationRewards { sender } => sender.clone(),
+            GmOperation::SetUserProfile { user, .. } => user.clone(),
         };
         
         let chain_id = self.runtime.chain_id();
@@ -79,6 +81,13 @@ impl Contract for GmContract {
             GmOperation::SetCooldownEnabled { enabled } => {
                 let _ = state.set_cooldown_enabled(&sender, enabled).await;
                 let _ = state.save().await;
+            }
+            GmOperation::SetUserProfile { user, name, avatar } => {
+                if let Err(e) = state.set_user_profile(&user, name, avatar).await {
+                    log::error!("Failed to set user profile for user {}: {:?}", user, e);
+                } else {
+                    log::info!("User profile set successfully for user: {}", user);
+                }
             }
             GmOperation::Gm { sender: _, recipient, content, inviter } => {
                 if !Self::is_message_content_valid(&content) {
@@ -268,6 +277,6 @@ impl GmContract {
     }
 }
 
-impl linera_sdk::abi::WithContractAbi for GmContract {
+impl WithContractAbi for GmContract {
     type Abi = GmAbi;
 }
