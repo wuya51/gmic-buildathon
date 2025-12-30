@@ -646,8 +646,6 @@ body {
 }
 
 .chat-details {
-  margin-top: 1rem;
-  padding-top: 1rem;
   border-top: 1px solid rgba(255, 90, 0, 0.3);
   animation: fadeIn 0.3s ease;
   background: transparent;
