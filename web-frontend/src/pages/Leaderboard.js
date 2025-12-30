@@ -44,7 +44,7 @@ const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) =
           <td>{index + 1}</td>
           <td>
             <div className="user-info">
-              {avatarUrl && <img src={avatarUrl} alt="avatar" className="user-avatar" />}
+              {avatarUrl ? <img src={avatarUrl} alt="avatar" className="user-avatar" /> : <span className="default-avatar user-avatar">👤</span>}
               <span
                 className="address-simple"
                 onClick={(e) => {
@@ -79,7 +79,7 @@ const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) =
           <td>{index + 1}</td>
           <td>
             <div className="user-info">
-              {avatarUrl && <img src={avatarUrl} alt="avatar" className="user-avatar" />}
+              {avatarUrl ? <img src={avatarUrl} alt="avatar" className="user-avatar" /> : <span className="default-avatar user-avatar">👤</span>}
               <span
                 className="address-simple"
                 onClick={(e) => {
