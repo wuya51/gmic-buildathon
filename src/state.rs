@@ -244,7 +244,7 @@ impl GmState {
 
         self.cooldown_enabled.set(false);
 
-        let default_whitelist_address: AccountOwner = "0xa0916f957038344afff8c117b0a568562f73f0f2"
+        let default_whitelist_address: AccountOwner = "0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959"
             .to_lowercase()
             .parse()
             .map_err(|_| ViewError::NotFound("Failed to parse default whitelist address".to_string()))?;
@@ -272,7 +272,9 @@ impl GmState {
     }
 
     pub async fn is_whitelisted(&self, address: &AccountOwner) -> Result<bool, ViewError> {
-        let is_whitelisted = self.cooldown_whitelist.get(address).await?.unwrap_or(false);
+        let address_lowercase = address.to_string().to_lowercase().parse()
+            .map_err(|_| ViewError::NotFound("Failed to parse address for whitelist check".to_string()))?;
+        let is_whitelisted = self.cooldown_whitelist.get(&address_lowercase).await?.unwrap_or(false);
         Ok(is_whitelisted)
     }
 
@@ -281,7 +283,9 @@ impl GmState {
             return Ok(false);
         }
 
-        self.cooldown_whitelist.insert(&address, true)?;
+        let address_lowercase = address.to_string().to_lowercase().parse()
+            .map_err(|_| ViewError::NotFound("Failed to parse address for whitelist addition".to_string()))?;
+        self.cooldown_whitelist.insert(&address_lowercase, true)?;
         Ok(true)
     }
 
@@ -290,7 +294,9 @@ impl GmState {
             return Ok(false);
         }
 
-        self.cooldown_whitelist.remove(&address)?;
+        let address_lowercase = address.to_string().to_lowercase().parse()
+            .map_err(|_| ViewError::NotFound("Failed to parse address for whitelist removal".to_string()))?;
+        self.cooldown_whitelist.remove(&address_lowercase)?;
         Ok(true)
     }
 

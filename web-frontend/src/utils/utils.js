@@ -10,8 +10,17 @@ export const formatAccountOwner = (address) => {
 
 export const formatAddressForDisplay = (address, isMobile = false, startChars = 6, endChars = 4) => {
   if (!address) return '';
-  const isMobileView = isMobile || window.innerWidth <= 768;
-  return isMobileView
+  
+  const screenWidth = window.innerWidth;
+  const MOBILE_BREAKPOINT = 768;
+  const TABLET_BREAKPOINT = 1024;
+  const LAPTOP_BREAKPOINT = 1440;
+  
+  const shouldShowShortAddress = 
+    screenWidth <= MOBILE_BREAKPOINT || 
+    (isMobile && screenWidth <= TABLET_BREAKPOINT);
+  
+  return shouldShowShortAddress
     ? `${address.slice(0, startChars)}...${address.slice(-endChars)}`
     : address;
 };

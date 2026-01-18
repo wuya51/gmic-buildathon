@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import './UserProfile.css';
 
 export const DEFAULT_CONTACTS = {
-  '0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959': {
+  [import.meta.env.VITE_WHITELIST_ADDRESS]: {
     username: 'User',
     avatar: null
   },
@@ -16,7 +15,7 @@ export const DEFAULT_CONTACTS = {
   }
 };
 
-const UserProfile = ({ address, userData = {}, onChainUserData = {}, showAddress = true, size = 40, truncateAddress = true, className = '' }) => {
+const UserProfile = ({ address, userData = {}, onChainUserData = {}, showAddress = true, size = 40, truncateAddress = true, onEditProfile = null, className = '' }) => {
   const getUserInfo = () => {
 
     if (onChainUserData && onChainUserData.username) {
@@ -59,45 +58,51 @@ const UserProfile = ({ address, userData = {}, onChainUserData = {}, showAddress
   };
 
   return (
-    <div className={`user-profile ${className}`}>
-      <div 
-        className="user-avatar" 
-        style={{ 
-          width: size, 
-          height: size,
-          borderRadius: size / 2,
-          fontSize: size * 0.4
-        }}
-      >
-        {userInfo.avatar ? (
-          <img 
-            src={userInfo.avatar} 
-            alt={`${userInfo.username}'s avatar`} 
-            className="avatar-image"
-            style={{ width: size, height: size, borderRadius: size / 2 }}
-          />
-        ) : (
-          <div 
-            className="avatar-placeholder"
-            style={{ 
-              width: size, 
-              height: size,
-              borderRadius: size / 2,
-              lineHeight: `${size}px`,
-              fontSize: size * 0.4
-            }}
-          >
-            {userInfo.username.charAt(0).toUpperCase()}
+    <div className={`flex items-center ${className}`}>
+      <div className="flex items-center gap-3 sm:gap-2">
+        <div 
+          className="rounded-full overflow-hidden bg-gray-100 flex justify-center items-center flex-shrink-0" 
+          style={{ 
+            width: size, 
+            height: size,
+            fontSize: size * 0.4
+          }}
+        >
+          {userInfo.avatar ? (
+            <img 
+              src={userInfo.avatar} 
+              alt={`${userInfo.username}'s avatar`} 
+              className="w-full h-full object-cover rounded-full"
+              style={{ width: size, height: size, borderRadius: size / 2 }}
+            />
+          ) : (
+            <div 
+              className="w-full h-full flex justify-center items-center bg-gray-200 text-gray-500 font-semibold"
+              style={{ 
+                lineHeight: `${size}px`,
+                fontSize: size * 0.4
+              }}
+            >
+              {userInfo.username.charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+        {userInfo.username && (
+          <div className="flex flex-col justify-center min-w-0">
+            <div className="font-normal text-gray-800 whitespace-nowrap overflow-hidden text-ellipsis sm:text-sm">{userInfo.username}</div>
+            {showAddress && (
+              <div className="text-xs text-gray-500 font-mono whitespace-nowrap overflow-hidden text-ellipsis">{formatDisplayAddress(address)}</div>
+            )}
           </div>
         )}
       </div>
-      {userInfo.username && (
-        <div className="user-info">
-          <div className="user-username">{userInfo.username}</div>
-          {showAddress && (
-            <div className="user-address">{formatDisplayAddress(address)}</div>
-          )}
-        </div>
+      {onEditProfile && (
+        <button 
+          className="ml-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors duration-200 text-sm font-medium"
+          onClick={onEditProfile}
+        >
+          Edit Profile
+        </button>
       )}
     </div>
   );

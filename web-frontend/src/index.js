@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
-import "./App.css";
 import App from "./App";
 import { BrowserRouter, Route, Routes, useParams, useSearchParams } from "react-router-dom";
 import GraphQLProvider from "./providers/GraphQLProvider";
@@ -54,21 +53,21 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="app-container">
-          <header className="app-header">
-            <h1 className="app-title">Linera GM Demo</h1>
-          </header>
-          <main className="main-content">
-            <div className="game-setup">
-              <h2>Application Error</h2>
-              <p>Sorry, the application encountered an error:</p>
-              <pre style={{ color: 'red', overflow: 'auto' }}>
-                {this.state.error && this.state.error.toString()}
-              </pre>
-              <p>Please refresh the page to try again, or check if the URL parameters are correct.</p>
+        <div className="min-h-screen bg-gray-50">
+              <header className="bg-white shadow-md py-4 px-6">
+                <h1 className="text-2xl font-bold text-gray-800">Linera GM Demo</h1>
+              </header>
+              <main className="container mx-auto py-8 px-4">
+                <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-3">Application Error</h2>
+                  <p className="text-gray-700 mb-4">Sorry, the application encountered an error:</p>
+                  <pre className="text-red-500 overflow-auto p-3 bg-gray-100 rounded-md mb-4">
+                    {this.state.error && this.state.error.toString()}
+                  </pre>
+                  <p className="text-gray-700">Please refresh the page to try again, or check if the URL parameters are correct.</p>
+                </div>
+              </main>
             </div>
-          </main>
-        </div>
       );
     }
 
@@ -139,18 +138,18 @@ function DefaultGraphQLApp() {
     );
   } catch (error) {
     return (
-      <div className="app-container">
-        <header className="app-header">
-          <h1 className="app-title">Linera GM Demo</h1>
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white shadow-md py-4 px-6">
+          <h1 className="text-2xl font-bold text-gray-800">Linera GM Demo</h1>
         </header>
-        <main className="main-content">
-          <div className="game-setup">
-            <h2>Application Initialization Error</h2>
-            <p>Sorry, the application encountered an error during initialization:</p>
-            <pre style={{ color: 'red', overflow: 'auto' }}>
+        <main className="container mx-auto py-8 px-4">
+          <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+            <h2 className="text-xl font-semibold text-gray-800 mb-3">Application Initialization Error</h2>
+            <p className="text-gray-700 mb-4">Sorry, the application encountered an error during initialization:</p>
+            <pre className="text-red-500 overflow-auto p-3 bg-gray-100 rounded-md mb-4">
               {error && error.toString()}
             </pre>
-            <p>Please refresh the page to try again, or check if the URL parameters are correct.</p>
+            <p className="text-gray-700">Please refresh the page to try again, or check if the URL parameters are correct.</p>
           </div>
         </main>
       </div>
@@ -208,18 +207,18 @@ function GraphQLApp() {
     );
   } catch (error) {
     return (
-      <div className="app-container">
-        <header className="app-header">
-          <h1 className="app-title">Linera GM Demo</h1>
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white shadow-md py-4 px-6">
+          <h1 className="text-2xl font-bold text-gray-800">Linera GM Demo</h1>
         </header>
-        <main className="main-content">
-          <div className="game-setup">
-            <h2>Application Initialization Error</h2>
-            <p>Sorry, the application encountered an error during initialization:</p>
-            <pre style={{ color: 'red', overflow: 'auto' }}>
+        <main className="container mx-auto py-8 px-4">
+          <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+            <h2 className="text-xl font-semibold text-gray-800 mb-3">Application Initialization Error</h2>
+            <p className="text-gray-700 mb-4">Sorry, the application encountered an error during initialization:</p>
+            <pre className="text-red-500 overflow-auto p-3 bg-gray-100 rounded-md mb-4">
               {error && error.toString()}
             </pre>
-            <p>Please refresh the page to try again, or check if the URL parameters are correct.</p>
+            <p className="text-gray-700">Please refresh the page to try again, or check if the URL parameters are correct.</p>
           </div>
         </main>
       </div>

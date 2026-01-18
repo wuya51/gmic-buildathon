@@ -91,17 +91,22 @@ ENV_FILE="$SCRIPT_DIR/web-frontend/.env"
 echo "VITE_CHAIN_ID=$CHAIN" > "$ENV_FILE"
 echo "VITE_APP_ID=$APP_ID" >> "$ENV_FILE"
 echo "VITE_OWNER_ID=$OWNER" >> "$ENV_FILE"
+echo "VITE_WHITELIST_ADDRESS=0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959" >> "$ENV_FILE"
 echo "VITE_PORT=8080" >> "$ENV_FILE"
 echo "VITE_HOST=localhost" >> "$ENV_FILE"
 echo "Environment variables saved to: $ENV_FILE"
 
 # Start Linera service
 echo "Starting Linera service on port 8080..."
+# Set log level for detailed debugging
+export RUST_LOG=info
+echo "RUST_LOG environment variable set to: $RUST_LOG"
 # Save backend logs to file
 linera service --port 8080 > "$SCRIPT_DIR/backend.log" 2>&1 &
 SERVICE_PID=$!
 echo "Linera service started, PID: $SERVICE_PID"
 echo "Backend logs saved to: $SCRIPT_DIR/backend.log"
+echo "Log level: $RUST_LOG"
 
 # Build and run frontend
 cd "$SCRIPT_DIR/web-frontend"

@@ -510,7 +510,10 @@ const GMOperations = ({
 
   useEffect(() => {
     if (setCooldownEnabledData) {
-      onMutationComplete(setCooldownEnabledData, 'setCooldown');
+      const success = setCooldownEnabledData?.setCooldownEnabled?.success === true;
+      if (success) {
+        onMutationComplete(setCooldownEnabledData, 'setCooldown');
+      }
     }
   }, [setCooldownEnabledData, onMutationComplete]);
 
@@ -596,27 +599,42 @@ const GMOperations = ({
           enabled: enabled,
         },
       });
+    
+      const transactionHash = result?.data;
       
-      const success = result?.data?.setCooldownEnabled?.success === true;
-      if (!success) {
-        setMessage("Insufficient permissions: only whitelist addresses can set the 24-hour limit switch", "warning");
+      if (transactionHash && typeof transactionHash === 'string') {
+
+        onMutationComplete(result?.data, 'setCooldown');
+
+        setTimeout(async () => {
+          try {
+            await (refetchCooldownStatus && refetchCooldownStatus({ fetchPolicy: 'network-only' }));
+            await (refetchCooldownCheck && refetchCooldownCheck({ fetchPolicy: 'network-only' }));
+            
+            const statusResult = await refetchCooldownStatus({ fetchPolicy: 'network-only' });
+            if (statusResult?.data?.getCooldownStatus?.enabled === enabled) {
+
+              setMessage(`24-hour limit ${enabled ? 'enabled' : 'disabled'} successfully!`, "success");
+            } else {
+
+              setMessage(`24-hour limit change not confirmed`, "warning");
+            }
+          } catch (refreshError) {
+            console.warn('Failed to refresh cooldown status:', refreshError);
+            setMessage(`Failed to verify status change`, "error");
+          }
+        }, 5000);
+      } else {
+        setMessage(`Failed to set 24-hour limit`, "error");
         setOperationStatus("error");
-        return;
       }
-      await (refetchCooldownStatus && refetchCooldownStatus());
-      await (refetchCooldownCheck && refetchCooldownCheck());
-      setOperationStatus("success");
       
     } catch (error) {
-      if (error && error.message && !error.message.includes('Mutation completed')) {
-        onMutationError(error);
-      } else {
-        await (refetchCooldownStatus && refetchCooldownStatus());
-        await (refetchCooldownCheck && refetchCooldownCheck());
-        setOperationStatus("success");
-      }
+      setMessage(`Failed to ${enabled ? 'enable' : 'disable'} 24-hour limit: ${error.message}`, "error");
+      setOperationStatus("error");
+      onMutationError(error);
     }
-  }, [currentAccount, setCooldownEnabled, onMutationError, setMessage, refetchCooldownStatus, refetchCooldownCheck]);
+  }, [currentAccount, setCooldownEnabled, onMutationError, setMessage, refetchCooldownStatus, refetchCooldownCheck, onMutationComplete]);
 
   const handleSetUserProfile = useCallback(async (userName, avatarData) => {
     if (!isValidAccountOwner(currentAccount)) {
@@ -930,7 +948,10 @@ export const useCooldownData = ({ currentAccount, queryRetryCount, setQueryRetry
     cooldownCheckData,
     whitelistData,
     loading,
-    queryError
+    queryError,
+    refetchCooldownStatus,
+    refetchCooldownCheck,
+    refetchWhitelist
   ]);
 };
 

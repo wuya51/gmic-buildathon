@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useLeaderboardData } from '../services/GMOperations';
+import { formatAddressForDisplay } from '../utils/utils';
 
 const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) => {
   const { leaderboardData, invitationLeaderboardData, refetchLeaderboard, refetchInvitationLeaderboard, getUserProfile } = useLeaderboardData();
@@ -35,29 +36,50 @@ const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) =
     
     return stableLeaderboardData.getTopUsers.map((entry, index) => {
       const userProfile = getUserProfile ? getUserProfile(entry.user) : null;
-      const shortAddress = `${entry.user.slice(0, 6)}...${entry.user.slice(-4)}`;
-      const displayName = userProfile?.name ? `${userProfile.name}: ${shortAddress}` : shortAddress;
+      const formattedAddress = formatAddressForDisplay(entry.user, isMobile);
+      const displayName = userProfile?.name ? `${userProfile.name}: ${formattedAddress}` : formattedAddress;
       const avatarUrl = userProfile?.avatar || null;
 
       return (
-        <tr key={`user-${entry.user}`} data-user={entry.user} className={entry.user === currentAccount ? "current-user" : ""}>
-          <td>{index + 1}</td>
-          <td>
-            <div className="user-info">
-              {avatarUrl ? <img src={avatarUrl} alt="avatar" className="user-avatar" /> : <span className="default-avatar user-avatar">👤</span>}
-              <span
-                className="address-simple"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  copyToClipboard(entry.user, e);
-                }}
-              >
-                {displayName}
-              </span>
+        <tr key={`user-${entry.user}`} data-user={entry.user} className={`transition-all duration-200 ${entry.user === currentAccount ? 'bg-[rgba(255,42,0,0.1)] font-semibold' : 'hover:bg-[rgba(255,42,0,0.05)] hover:shadow-sm'}`}>
+          <td className="p-3 border-b border-gray-100 text-gray-700">{index + 1}</td>
+          <td className="p-3 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              {avatarUrl ? 
+                <img src={avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover transition-all duration-300 hover:scale-110 hover:shadow-md hover:shadow-[rgba(255,42,0,0.3)]" /> : 
+                <span className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-200 text-gray-600 transition-all duration-300 hover:scale-110 hover:shadow-md hover:shadow-[rgba(255,42,0,0.3)]">👤</span>
+              }
+              {userProfile?.name ? (
+                <div className="flex flex-col">
+                  <span className="text-gray-800 font-medium">{userProfile.name}</span>
+                  <span
+                    className="text-gray-600 text-sm font-normal cursor-pointer px-1 py-0.5 rounded transition-all duration-200 hover:bg-[rgba(255,42,0,0.1)] hover:text-[#ff2a00]"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      copyToClipboard(entry.user, e);
+                    }}
+                    title={entry.user}
+                  >
+                    {formattedAddress}
+                  </span>
+                </div>
+              ) : (
+                <span
+                  className="text-gray-800 font-normal cursor-pointer px-1 py-0.5 rounded transition-all duration-200 hover:bg-[rgba(255,42,0,0.1)] hover:text-[#ff2a00]"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    copyToClipboard(entry.user, e);
+                  }}
+                  title={entry.user}
+                >
+                  {formattedAddress}
+                </span>
+              )}
             </div>
           </td>
-          <td>{entry.count}</td>
+          <td className="p-3 border-b border-gray-100 text-gray-800">{entry.count}</td>
         </tr>
       );
     });
@@ -70,45 +92,66 @@ const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) =
     
     return stableInvitationLeaderboardData.getTopInvitors.map((entry, index) => {
       const userProfile = getUserProfile ? getUserProfile(entry.user) : null;
-      const shortAddress = `${entry.user.slice(0, 6)}...${entry.user.slice(-4)}`;
-      const displayName = userProfile?.name ? `${userProfile.name}: ${shortAddress}` : shortAddress;
+      const formattedAddress = formatAddressForDisplay(entry.user, isMobile);
+      const displayName = userProfile?.name ? `${userProfile.name}: ${formattedAddress}` : formattedAddress;
       const avatarUrl = userProfile?.avatar || null;
 
       return (
-        <tr key={`invitor-${entry.user}`} data-user={entry.user} className={entry.user === currentAccount ? "current-user" : ""}>
-          <td>{index + 1}</td>
-          <td>
-            <div className="user-info">
-              {avatarUrl ? <img src={avatarUrl} alt="avatar" className="user-avatar" /> : <span className="default-avatar user-avatar">👤</span>}
-              <span
-                className="address-simple"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  copyToClipboard(entry.user, e);
-                }}
-              >
-                {displayName}
-              </span>
+        <tr key={`invitor-${entry.user}`} data-user={entry.user} className={`transition-all duration-200 ${entry.user === currentAccount ? 'bg-[rgba(255,42,0,0.1)] font-semibold' : 'hover:bg-[rgba(255,42,0,0.05)] hover:shadow-sm'}`}>
+          <td className="p-3 border-b border-gray-100 text-gray-700">{index + 1}</td>
+          <td className="p-3 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              {avatarUrl ? 
+                <img src={avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover transition-all duration-300 hover:scale-110 hover:shadow-md hover:shadow-[rgba(255,42,0,0.3)]" /> : 
+                <span className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-200 text-gray-600 transition-all duration-300 hover:scale-110 hover:shadow-md hover:shadow-[rgba(255,42,0,0.3)]">👤</span>
+              }
+              {userProfile?.name ? (
+                <div className="flex flex-col">
+                  <span className="text-gray-800 font-medium">{userProfile.name}</span>
+                  <span
+                    className="text-gray-600 text-sm font-normal cursor-pointer px-1 py-0.5 rounded transition-all duration-200 hover:bg-[rgba(255,42,0,0.1)] hover:text-[#ff2a00]"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      copyToClipboard(entry.user, e);
+                    }}
+                    title={entry.user}
+                  >
+                    {formattedAddress}
+                  </span>
+                </div>
+              ) : (
+                <span
+                  className="text-gray-800 font-normal cursor-pointer px-1 py-0.5 rounded transition-all duration-200 hover:bg-[rgba(255,42,0,0.1)] hover:text-[#ff2a00]"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    copyToClipboard(entry.user, e);
+                  }}
+                  title={entry.user}
+                >
+                  {formattedAddress}
+                </span>
+              )}
             </div>
           </td>
-          <td>{entry.count}</td>
+          <td className="p-3 border-b border-gray-100 text-gray-800">{entry.count}</td>
         </tr>
       );
     });
   }, [stableInvitationLeaderboardData?.getTopInvitors, currentAccount, isMobile, copyToClipboard, getUserProfile]);
 
   return (
-    <div className="card leaderboard-card">
-      <div className="section-header">
-        <h3>Leaderboard</h3>
+    <div className="w-full relative mb-6">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold text-gray-800">Leaderboard</h3>
       </div>
-      <div className="leaderboard-content">
-          <div className="leaderboard-tabs">
-            <div className="stats-header">
-              <h4>Top GMicrochains Senders</h4>
+      <div className="mt-4">
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-md font-medium text-gray-700">Top GMicrochains Senders</h4>
               <button 
-                className="refresh-btn"
+                className="bg-transparent border-0 text-[#ff2a00] text-sm cursor-pointer p-1 rounded transition-all duration-300 hover:bg-[rgba(255,42,0,0.1)]"
                 onClick={stableRefetchLeaderboard}
                 title="Refresh leaderboard"
               >
@@ -116,13 +159,13 @@ const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) =
               </button>
             </div>
             {gmLeaderboardItems ? (
-              <div className="leaderboard-list">
-                <table className="leaderboard-table">
+              <div>
+                <table className="w-full border-collapse text-sm font-sans">
                   <thead>
-                    <tr>
-                      <th>Rank</th>
-                      <th>User</th>
-                      <th>Count</th>
+                    <tr className="bg-[rgba(255,42,0,0.05)]">
+                      <th className="p-3 text-left font-bold text-[#ff2a00] w-[60px] tracking-wide">Rank</th>
+                      <th className="p-3 text-left font-bold text-[#ff2a00] w-full min-w-[250px] tracking-wide">User</th>
+                      <th className="p-3 text-left font-bold text-[#ff2a00] w-[80px] tracking-wide">Count</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -131,17 +174,17 @@ const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) =
                 </table>
               </div>
             ) : (
-              <div className="no-leaderboard-data">
+              <div className="text-center p-4 text-gray-500">
                 <p>No leaderboard data available yet.</p>
               </div>
             )}
           </div>
           
-          <div className="leaderboard-tabs invitation-leaderboard-tab">
-            <div className="stats-header">
-              <h4>Top Invitors</h4>
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-md font-medium text-gray-700">Top Invitors</h4>
               <button 
-                className="refresh-btn"
+                className="bg-transparent border-0 text-[#ff2a00] text-sm cursor-pointer p-1 rounded transition-all duration-300 hover:bg-[rgba(255,42,0,0.1)]"
                 onClick={stableRefetchInvitationLeaderboard}
                 title="Refresh invitation leaderboard"
               >
@@ -149,13 +192,13 @@ const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) =
               </button>
             </div>
             {invitationLeaderboardItems ? (
-              <div className="leaderboard-list">
-                <table className="leaderboard-table">
+              <div>
+                <table className="w-full border-collapse text-sm font-sans">
                   <thead>
-                    <tr>
-                      <th>Rank</th>
-                      <th>User</th>
-                      <th>Points</th>
+                    <tr className="bg-[rgba(255,42,0,0.05)]">
+                      <th className="p-3 text-left font-bold text-[#ff2a00] w-[60px] tracking-wide">Rank</th>
+                      <th className="p-3 text-left font-bold text-[#ff2a00] w-full min-w-[250px] tracking-wide">User</th>
+                      <th className="p-3 text-left font-bold text-[#ff2a00] w-[80px] tracking-wide">Points</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -164,7 +207,7 @@ const Leaderboard = React.memo(({ currentAccount, isMobile, copyToClipboard }) =
                 </table>
               </div>
             ) : (
-              <div className="no-leaderboard-data">
+              <div className="text-center p-4 text-gray-500">
                 <p>No invitation leaderboard data available yet.</p>
               </div>
             )}

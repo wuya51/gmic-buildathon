@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useWallet, WalletConnector } from './providers';
 import { DynamicConnectButton, useDynamicContext } from '@dynamic-labs/sdk-react-core';
-import "./App.css";
 import GMOperations, { useGMAdditionalData, useLeaderboardData, useCooldownData, useUserData } from './services/GMOperations';
 import NotificationCenter from './pages/NotificationCenter';
 import Leaderboard from './pages/Leaderboard';
@@ -10,6 +9,7 @@ import EmojiPicker from './components/EmojiPicker';
 import ChatHistory from './components/ChatHistory';
 import UserProfile from './components/UserProfile';
 import { formatAccountOwner, formatAddressForDisplay, uploadToPinata, MAX_MESSAGE_LENGTH, WARNING_THRESHOLD } from './utils';
+import { BUTTON_STYLES, CARD_STYLES, TEXT_STYLES, INPUT_STYLES, BADGE_STYLES, MODAL_STYLES, NOTIFICATION_STYLES, NAVIGATION_STYLES, HEADER_STYLES, CHAT_STYLES } from './utils/styles';
 
 const KeyboardIcon = ({ className = "" }) => (
   <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -73,26 +73,28 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="error-boundary">
-          <div className="error-icon">⚠️</div>
-          <h2>Oops! Something went wrong</h2>
-          <p className="error-message">We're sorry, but something unexpected happened.</p>
-          <details className="error-details">
-            <summary>Technical Details (for developers)</summary>
-            <div className="error-content">
-              {this.state.error && this.state.error.toString()}
-              <br />
-              {this.state.errorInfo && this.state.errorInfo.componentStack}
-            </div>
-          </details>
-          <button 
-            className="retry-button"
-            onClick={() => this.setState({ hasError: false })}
-          >
-            Try Again
-          </button>
-        </div>
-      );
+    <div className="flex justify-center items-center min-h-screen p-4 bg-[#f8f5ed]">
+      <div className="max-w-md bg-white border border-red-500 rounded-lg shadow-lg p-8 text-center animate-fadeIn">
+        <div className="text-4xl mb-4">⚠️</div>
+        <h2 className="text-2xl font-bold text-red-500 mb-4">Oops! Something went wrong</h2>
+        <p className="text-lg text-gray-600 mb-6">We're sorry, but something unexpected happened.</p>
+        <details className="mb-6 text-left">
+          <summary className="cursor-pointer font-semibold text-red-500 mb-2">Technical Details (for developers)</summary>
+          <div className="text-sm bg-gray-50 p-4 rounded border border-gray-200">
+            {this.state.error && this.state.error.toString()}
+            <br />
+            {this.state.errorInfo && this.state.errorInfo.componentStack}
+          </div>
+        </details>
+        <button 
+          className={`${BUTTON_STYLES.primary} px-6 py-2 rounded-md font-semibold transition-all duration-300 hover:translate-y-[-2px] hover:shadow-md hover:shadow-red-500/30`}
+          onClick={() => this.setState({ hasError: false })}
+        >
+          Try Again
+        </button>
+      </div>
+    </div>
+  );
     }
 
     return this.props.children;
@@ -148,6 +150,76 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   }, [ownerId]);
   
   const pageLoadTime = useRef(0);
+  const [appState, setAppState] = useState({
+    ui: {
+      isMobile: window.innerWidth <= 768,
+      activeTab: localStorage.getItem('activeTab') || 'messages',
+      showLeaderboard: true,
+      showProfileSettings: false,
+      showEmojiPicker: false,
+      showGifPicker: false,
+      showVoicePopup: false,
+      showContactList: false,
+      showHistoryDropdown: false,
+      showShareReferralModal: false,
+      showInvitedUsersDropdown: false
+    },
+    message: {
+      customMessage: '',
+      selectedMessage: 'gm',
+      isVoiceMode: false,
+      isRecording: false,
+      recordingTime: 0,
+      selectedGif: '',
+      messageInputFocused: false,
+      isSendingMessage: false
+    },
+    operation: {
+      operationStatus: null,
+      claimStatus: null,
+      errorMessage: "",
+      cooldownRemaining: 0,
+      addressValidationError: "",
+      profileSaveStatus: null
+    }
+  });
+
+  const { activeTab, showLeaderboard, showProfileSettings, showEmojiPicker, showGifPicker, showVoicePopup, showContactList, showHistoryDropdown, showShareReferralModal, showInvitedUsersDropdown } = appState.ui;
+  const { customMessage, selectedMessage, isVoiceMode, isRecording, recordingTime, selectedGif, messageInputFocused, isSendingMessage } = appState.message;
+  const { operationStatus, claimStatus, errorMessage, cooldownRemaining, addressValidationError, profileSaveStatus } = appState.operation;
+
+  const setActiveTab = (tab) => updateAppState('ui', { activeTab: tab });
+  const setShowLeaderboard = (show) => updateAppState('ui', { showLeaderboard: show });
+  const setShowProfileSettings = (show) => updateAppState('ui', { showProfileSettings: show });
+  const setShowEmojiPicker = (show) => updateAppState('ui', { showEmojiPicker: show });
+  const setShowGifPicker = (show) => updateAppState('ui', { showGifPicker: show });
+  const setShowVoicePopup = (show) => updateAppState('ui', { showVoicePopup: show });
+  const setShowContactList = (show) => updateAppState('ui', { showContactList: show });
+  const setShowHistoryDropdown = (show) => updateAppState('ui', { showHistoryDropdown: show });
+  const setShowShareReferralModal = (show) => updateAppState('ui', { showShareReferralModal: show });
+  const setShowInvitedUsersDropdown = (show) => updateAppState('ui', { showInvitedUsersDropdown: show });
+  const setCustomMessage = (message) => updateAppState('message', { customMessage: message });
+  const setSelectedMessage = (message) => updateAppState('message', { selectedMessage: message });
+  const setIsVoiceMode = (mode) => updateAppState('message', { isVoiceMode: mode });
+  const setIsRecording = (recording) => updateAppState('message', { isRecording: recording });
+  const setRecordingTime = (time) => updateAppState('message', { recordingTime: time });
+  const setSelectedGif = (gif) => updateAppState('message', { selectedGif: gif });
+  const setMessageInputFocused = (focused) => updateAppState('message', { messageInputFocused: focused });
+  const setIsSendingMessage = (sending) => updateAppState('message', { isSendingMessage: sending });
+  const setOperationStatus = (status) => updateAppState('operation', { operationStatus: status });
+  const setClaimStatus = (status) => updateAppState('operation', { claimStatus: status });
+  const setErrorMessage = (message) => updateAppState('operation', { errorMessage: message });
+  const setCooldownRemaining = (remaining) => updateAppState('operation', { cooldownRemaining: remaining });
+  const setAddressValidationError = (error) => updateAppState('operation', { addressValidationError: error });
+  const setProfileSaveStatus = (status) => updateAppState('operation', { profileSaveStatus: status });
+
+  const updateAppState = (category, updates) => {
+    setAppState(prev => ({
+      ...prev,
+      [category]: { ...prev[category], ...updates }
+    }));
+  };
+
   const [urlInviter, setUrlInviter] = useState(null);
   
   const isButtonDisabled = (operationStatus, currentAccount, gmOps, cooldownRemaining = 0, localCooldownEnabled = false, isConnected = false) => {
@@ -174,13 +246,11 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   }, [ownerId]);
   
   const [connectionError, setConnectionError] = useState("");
-  const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [editUsername, setEditUsername] = useState("");
   const [editAvatar, setEditAvatar] = useState("");
   const [avatarPreview, setAvatarPreview] = useState("");
   const [selectedAvatarFile, setSelectedAvatarFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [profileSaveStatus, setProfileSaveStatus] = useState(null);
   const [profileSaveMessage, setProfileSaveMessage] = useState("");
 
   
@@ -244,21 +314,9 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     return savedTargetChainId || chainId;
   };
   const [targetChainId, setTargetChainId] = useState(getInitialTargetChainId());
-  const [operationStatus, setOperationStatus] = useState(null);
-  const [claimStatus, setClaimStatus] = useState(null);
-  const [errorMessage, setErrorMessage] = useState("");
   const [queryRetryCount, setQueryRetryCount] = useState(0);
-  const [cooldownRemaining, setCooldownRemaining] = useState(0);
-  const [addressValidationError, setAddressValidationError] = useState("");
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [previousTotalMessages, setPreviousTotalMessages] = useState(null);
   const [forceUpdate, setForceUpdate] = useState(0);
-  const [showLeaderboard, setShowLeaderboard] = useState(true);
-  const getInitialActiveTab = () => {
-    const savedActiveTab = localStorage.getItem('activeTab');
-    return savedActiveTab || 'messages';
-  };
-  const [activeTab, setActiveTab] = useState(getInitialActiveTab());
   const [cooldownStatus, setCooldownStatus] = useState(null);
   const [localCooldownEnabled, setLocalCooldownEnabled] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -267,31 +325,18 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   const previousLatestTimestampRef = useRef(0);
   const pageLoadTimestampRef = useRef(0);
   const [historyRecords, setHistoryRecords] = useState([]);
-  const [showHistoryDropdown, setShowHistoryDropdown] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [customMessageEnabled, setCustomMessageEnabled] = useState(true);
-  const [customMessage, setCustomMessage] = useState('');
-  const [selectedMessage, setSelectedMessage] = useState('gm');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showGifPicker, setShowGifPicker] = useState(false);
-  const [selectedGif, setSelectedGif] = useState('');
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState(null);
   const [isLongPressing, setIsLongPressing] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [showVoicePopup, setShowVoicePopup] = useState(false);
   const [voicePopupText, setVoicePopupText] = useState('');
   const [voicePopupType, setVoicePopupType] = useState('normal');
-  const [messageInputFocused, setMessageInputFocused] = useState(false);
   const [isMessageInputActive, setIsMessageInputActive] = useState(false);
-  const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [showContactList, setShowContactList] = useState(false);
   const [newRecipientAddress, setNewRecipientAddress] = useState('');
   const [newRecipientValidationError, setNewRecipientValidationError] = useState('');
   const [recentContacts, setRecentContacts] = useState([
     {
-      address: '0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959',
+      address: import.meta.env.VITE_WHITELIST_ADDRESS,
       name: 'wuya51',
       avatar: '👤'
     }
@@ -330,15 +375,19 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     }
     mediaRecorderRef.current = null;
     audioChunksRef.current = [];
-    setIsRecording(false);
-    setRecordingTime(0);
-    setShowVoicePopup(false);
+    updateAppState('message', { 
+      isRecording: false,
+      recordingTime: 0 
+    });
+    updateAppState('ui', { showVoicePopup: false });
   }, [ownerId]);
   
   const addEmojiToMessage = (emoji) => {
-    setCustomMessage(prev => prev + emoji);
-    setShowEmojiPicker(false);
-    setMessageInputFocused(true);
+    updateAppState('message', { 
+      customMessage: appState.message.customMessage + emoji 
+    });
+    updateAppState('ui', { showEmojiPicker: false });
+    updateAppState('message', { messageInputFocused: true });
   };
 
   const isVoiceRecordingSupported = () => {
@@ -352,14 +401,14 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     if (!isVoiceRecordingSupported()) {
       setVoicePopupText('Voice recording not supported');
       setVoicePopupType('error');
-      setShowVoicePopup(true);
-      setTimeout(() => setShowVoicePopup(false), 2000);
+      updateAppState('ui', { showVoicePopup: true });
+      setTimeout(() => updateAppState('ui', { showVoicePopup: false }), 2000);
       return;
     }
     
     resetRecordingState();
 
-    setShowVoicePopup(true);
+    updateAppState('ui', { showVoicePopup: true });
     setVoicePopupText('Recording...');
     setVoicePopupType('recording');
     
@@ -386,20 +435,22 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       };
 
       mediaRecorder.start(100);
-      setIsRecording(true);
-      setRecordingTime(0);
+      updateAppState('message', { 
+        isRecording: true,
+        recordingTime: 0 
+      });
 
       let startTime = Date.now();
       recordingTimerRef.current = setInterval(() => {
         const elapsed = (Date.now() - startTime) / 1000;
         const displayTime = Math.min(elapsed, 10);
         
-        setRecordingTime(displayTime);
+        updateAppState('message', { recordingTime: displayTime });
         setVoicePopupText(`Recording... ${displayTime.toFixed(1)}s`);
         
         if (elapsed >= 10 && mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
             mediaRecorderRef.current.stop();
-            setIsRecording(false);
+            updateAppState('message', { isRecording: false });
             clearInterval(recordingTimerRef.current);
             recordingTimerRef.current = null;
             const timestamp = performance.now();
@@ -408,8 +459,8 @@ function App({ chainId, appId, ownerId, inviter, port }) {
             
             setVoicePopupText('Auto-sent (max 10s)');
             setVoicePopupType('success');
-            setShowVoicePopup(true);
-            setTimeout(() => setShowVoicePopup(false), 1500);
+            updateAppState('ui', { showVoicePopup: true });
+            setTimeout(() => updateAppState('ui', { showVoicePopup: false }), 1500);
             
             const audioData = [...audioChunksRef.current];
             audioChunksRef.current = [];
@@ -421,28 +472,28 @@ function App({ chainId, appId, ownerId, inviter, port }) {
 
       setVoicePopupText('Cannot access microphone');
       setVoicePopupType('error');
-      setIsRecording(false);
+      updateAppState('message', { isRecording: false });
     }
   };
 
   const handleVoicePressEnd = () => {
-    setShowVoicePopup(false);
+    updateAppState('ui', { showVoicePopup: false });
     
-    if (isRecording && mediaRecorderRef.current) {
+    if (appState.message.isRecording && mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
+      updateAppState('message', { isRecording: false });
       
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
         recordingTimerRef.current = null;
       }
 
-      if (recordingTime < 1) {
+      if (appState.message.recordingTime < 1) {
         setVoicePopupText('Recording too short (min 1s)');
         setVoicePopupType('error');
-        setShowVoicePopup(true);
+        updateAppState('ui', { showVoicePopup: true });
         setTimeout(() => {
-          setShowVoicePopup(false);
+          updateAppState('ui', { showVoicePopup: false });
           resetRecordingState();
         }, 1500);
       } else {
@@ -452,7 +503,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
         
         setVoicePopupText('Uploading voice message...');
         setVoicePopupType('info');
-        setShowVoicePopup(true);
+        updateAppState('ui', { showVoicePopup: true });
         
         const audioData = [...audioChunksRef.current];
         audioChunksRef.current = [];
@@ -468,20 +519,18 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       
       const result = await uploadToPinata(audioBlob, filename);
       
-      if (result && result.data && result.data.IpfsHash) {
-
-        
-        const voiceUrl = result.url || `https://gateway.pinata.cloud/ipfs/${result.data.IpfsHash}`;
+      if (result && result.success && result.url) {
+        const voiceUrl = result.url;
         handleSendGM('voice', voiceUrl);
         setVoicePopupText('Voice message sent!');
         setVoicePopupType('success');
-        setShowVoicePopup(true);
+        updateAppState('ui', { showVoicePopup: true });
         setTimeout(() => {
-          setShowVoicePopup(false);
+          updateAppState('ui', { showVoicePopup: false });
           resetRecordingState();
         }, 1500);
       } else {
-        throw new Error('Upload failed - no IPFS hash returned');
+        throw new Error(result?.error || 'Upload failed - no IPFS hash returned');
       }
       
     } catch (error) {
@@ -489,9 +538,9 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       
       setVoicePopupText('Failed to send voice message');
       setVoicePopupType('error');
-      setShowVoicePopup(true);
+      updateAppState('ui', { showVoicePopup: true });
       setTimeout(() => {
-        setShowVoicePopup(false);
+        updateAppState('ui', { showVoicePopup: false });
         resetRecordingState();
       }, 2000);
     }
@@ -518,8 +567,6 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     } catch (error) {
     }
   };
-  const [showShareReferralModal, setShowShareReferralModal] = useState(false);
-  const [showInvitedUsersDropdown, setShowInvitedUsersDropdown] = useState(false);
   const [invitedUsersList, setInvitedUsersList] = useState([]);
   const [invitedUsers, setInvitedUsers] = useState([]);
   const [invitedUsersLoading, setInvitedUsersLoading] = useState(false);
@@ -555,8 +602,9 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   const dropdownRef = useRef(null);
   useEffect(() => {
     const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-    };
+    setWindowWidth(window.innerWidth);
+    updateAppState('ui', { isMobile: window.innerWidth <= 768 });
+  };
     
     window.addEventListener('resize', handleResize);
     return () => {
@@ -567,8 +615,8 @@ function App({ chainId, appId, ownerId, inviter, port }) {
 
 
   forceUpdateRef.current = forceUpdate;
-  cooldownRemainingRef.current = cooldownRemaining;
-  activeTabRef.current = activeTab;
+  cooldownRemainingRef.current = appState.operation.cooldownRemaining;
+  activeTabRef.current = appState.ui.activeTab;
   
   const addNotification = useCallback((message, type = 'info') => {
     const timestamp = Date.now();
@@ -652,11 +700,11 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   const handleCustomMessageToggle = useCallback(() => {
     setCustomMessageEnabled(!customMessageEnabled);
     if (!customMessageEnabled) {
-      setSelectedMessage(customMessage || 'gm');
+      updateAppState('message', { selectedMessage: appState.message.customMessage || 'gm' });
     } else {
-      setSelectedMessage('gm');
+      updateAppState('message', { selectedMessage: 'gm' });
     }
-  }, [customMessageEnabled, customMessage]);
+  }, [customMessageEnabled, appState.message.customMessage]);
 
   const isMessageContentValid = useCallback((content) => {
     if (content.length > 280) {
@@ -688,9 +736,9 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   const handleCustomMessageChange = useCallback((e) => {
     const value = e.target.value;
 
-    setCustomMessage(value);
+    updateAppState('message', { customMessage: value });
     if (customMessageEnabled) {
-      setSelectedMessage(value || 'gm');
+      updateAppState('message', { selectedMessage: value || 'gm' });
       
       if (value && !isMessageContentValid(value)) {
 
@@ -699,13 +747,13 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   }, [customMessageEnabled, isMessageContentValid]);
 
   const handleLongPressStart = () => {
-    if (isButtonDisabled(operationStatus, currentAccount, gmOps, cooldownRemaining, localCooldownEnabled, currentIsConnected)) {
+    if (isButtonDisabled(appState.operation.operationStatus, currentAccount, gmOps, appState.operation.cooldownRemaining, localCooldownEnabled, currentIsConnected)) {
       return;
     }
     
     setIsLongPressing(true);
     const timer = setTimeout(() => {
-      setIsVoiceMode(true);
+      updateAppState('message', { isVoiceMode: true });
       setIsLongPressing(false);
     }, 1000);
     
@@ -722,16 +770,16 @@ function App({ chainId, appId, ownerId, inviter, port }) {
  
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showEmojiPicker && 
+      if (appState.ui.showEmojiPicker && 
           !event.target.closest('.emoji-picker-container') && 
           !event.target.closest('.emoji-picker-button')) {
-        setShowEmojiPicker(false);
+        updateAppState('ui', { showEmojiPicker: false });
       }
       
-      if (showGifPicker && 
+      if (appState.ui.showGifPicker && 
           !event.target.closest('.gif-picker-container') && 
           !event.target.closest('.gif-picker-button')) {
-        setShowGifPicker(false);
+        updateAppState('ui', { showGifPicker: false });
       }
     };
     
@@ -739,7 +787,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showEmojiPicker, showGifPicker]);
+  }, [appState.ui.showEmojiPicker, appState.ui.showGifPicker]);
 
   const [currentAccount, setCurrentAccount] = useState(null);
   useEffect(() => {
@@ -789,11 +837,11 @@ function App({ chainId, appId, ownerId, inviter, port }) {
   }, [currentIsConnected, currentAccount, currentChainId, walletType]);
 
   const memoizedCurrentAccount = useMemo(() => currentAccount, [currentAccount]);
-  const memoizedIsMobile = useMemo(() => isMobile, [isMobile]);
+  const memoizedIsMobile = useMemo(() => appState.ui.isMobile, [appState.ui.isMobile]);
   
   const handleToggleShareReferral = useCallback(() => {
-    setShowShareReferralModal(!showShareReferralModal);
-  }, [showShareReferralModal]);
+    updateAppState('ui', { showShareReferralModal: !appState.ui.showShareReferralModal });
+  }, [appState.ui.showShareReferralModal]);
   
   const fallbackCopyTextToClipboard = useCallback((text) => {
     const textArea = document.createElement('textarea');
@@ -812,12 +860,15 @@ function App({ chainId, appId, ownerId, inviter, port }) {
         const btn = document.querySelector('.copy-btn');
         if (btn) {
           const originalText = btn.textContent;
+          const originalClasses = btn.className;
+          
           btn.textContent = 'Copied!';
-          btn.style.backgroundColor = '#4CAF50';
+          btn.className = `${originalClasses} bg-[#ff2a00] text-white font-bold px-2 py-0.5 rounded`;
+          
           setTimeout(() => {
             btn.textContent = originalText;
-            btn.style.backgroundColor = '';
-          }, 2000);
+            btn.className = originalClasses;
+          }, 1000);
         }
 
       } else {
@@ -892,25 +943,25 @@ function App({ chainId, appId, ownerId, inviter, port }) {
 
   
   useEffect(() => {
-    localStorage.setItem('activeTab', activeTab);
-    activeTabRef.current = activeTab;
+    localStorage.setItem('activeTab', appState.ui.activeTab);
+    activeTabRef.current = appState.ui.activeTab;
     
     const saveTimeout = setTimeout(() => {
       const currentSaved = localStorage.getItem('activeTab');
-      if (currentSaved !== activeTab) {
-        localStorage.setItem('activeTab', activeTab);
+      if (currentSaved !== appState.ui.activeTab) {
+        localStorage.setItem('activeTab', appState.ui.activeTab);
       }
     }, 100);
     
     return () => clearTimeout(saveTimeout);
-  }, [activeTab]);
+  }, [appState.ui.activeTab]);
 
   useEffect(() => {
     const checkAndRestoreActiveTab = () => {
       try {
         const saved = localStorage.getItem('activeTab');
-        if (saved && saved !== activeTab && ['messages', 'leaderboards', 'settings'].includes(saved)) {
-          setActiveTab(saved);
+        if (saved && saved !== appState.ui.activeTab && ['messages', 'leaderboards', 'settings'].includes(saved)) {
+          updateAppState('ui', { activeTab: saved });
         }
       } catch (error) {
 
@@ -930,17 +981,17 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       window.removeEventListener('error', handleErrorBoundaryRecovery);
       window.removeEventListener('unhandledrejection', handleErrorBoundaryRecovery);
     };
-  }, [activeTab]);
+  }, [appState.ui.activeTab]);
 
   useEffect(() => {
     const tabCheckInterval = setInterval(() => {
       try {
         const saved = localStorage.getItem('activeTab');
-        const isValidTab = ['messages', 'leaderboards', 'settings'].includes(activeTab);
+        const isValidTab = ['messages', 'leaderboards', 'settings'].includes(appState.ui.activeTab);
         const isSavedValid = saved && ['messages', 'leaderboards', 'settings'].includes(saved);
         
         if (!isValidTab && isSavedValid) {
-          setActiveTab(saved);
+          updateAppState('ui', { activeTab: saved });
           activeTabRef.current = saved;
         }
       } catch (error) {
@@ -949,7 +1000,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     }, 10000);
 
     return () => clearInterval(tabCheckInterval);
-  }, [activeTab]);
+  }, [appState.ui.activeTab]);
   
   const disconnectDynamicWallet = async (disconnectWalletFn) => {
     try {
@@ -978,7 +1029,8 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       disconnectWallet,
       walletType,
       isLoading,
-      primaryWallet
+      primaryWallet,
+      isMobile = props.isMobile || appState.ui.isMobile
     } = props;
     
     const isLineraConnected = currentIsConnected && walletType === 'linera';
@@ -1049,23 +1101,23 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     };
     
     return (
-      <div className="wallet-connection-section">
-        <div className="wallet-button-container">
+      <div className="flex items-center gap-3">
+        <div>
           {isLineraConnected ? (
             <div 
-              className="wallet-info-card linera clickable"
+              className="px-3.5 py-1.5 bg-gray-800 rounded-lg border border-gray-700 flex items-center justify-center cursor-pointer transition-all duration-200 hover:opacity-80"
               onClick={handleDisconnectLineraWallet}
               title="Click to disconnect Linera wallet"
             >
-              <div className="wallet-address">
-                <span className="status-dot"></span>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="w-2 h-2 rounded-full bg-green-500 shadow-lg"></span>
                 {lineraAccount ? `${lineraAccount.slice(0, 6)}...${lineraAccount.slice(-4)}` : 
                  currentAccount ? `${currentAccount.slice(0, 6)}...${currentAccount.slice(-4)}` : 'Connected'}
               </div>
             </div>
           ) : (
             <button 
-              className="connect-btn linera"
+              className={`px-3.5 py-1.5 font-semibold text-xs rounded-md cursor-pointer transition-all duration-200 min-w-[110px] ${BUTTON_STYLES.primary} border-none rounded-lg shadow-md transition-all duration-300 hover:transform hover:-translate-y-0.5 hover:shadow-lg active:transform active:translate-y-0 active:transition-transform active:duration-100`}
               onClick={handleConnectLineraWallet}
               disabled={isLoading && walletType === 'linera'}
             >
@@ -1074,26 +1126,26 @@ function App({ chainId, appId, ownerId, inviter, port }) {
           )}
         </div>
         
-        <div className="wallet-button-container">
+        <div>
           {(primaryWallet && primaryWallet.address) || (currentIsConnected && currentAccount && walletType !== 'linera') ? (
             <div 
-              className="wallet-info-card dynamic clickable"
+              className="px-3.5 py-1.5 bg-gray-800 rounded-lg border border-gray-700 flex items-center justify-center cursor-pointer transition-all duration-200 hover:opacity-80"
               onClick={handleDisconnectDynamicWalletClick}
               title="Click to disconnect wallet"
             >
-              <div className="wallet-address">
-                <span className="status-dot"></span>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="w-2 h-2 rounded-full bg-green-500 shadow-lg"></span>
                 {primaryWallet?.address ? `${formatAccountOwner(primaryWallet.address).slice(0, 6)}...${formatAccountOwner(primaryWallet.address).slice(-4)}` : 
                  currentAccount ? `${currentAccount.slice(0, 6)}...${currentAccount.slice(-4)}` : 
                  'Connected'}
               </div>
             </div>
           ) : (
-            <div className="wallet-connect-card">
+            <div>
               <DynamicConnectButton>
                 <button 
-                  className="connect-btn dynamic"
-                >
+              className={`px-3.5 py-1.5 font-semibold text-xs rounded-md cursor-pointer transition-all duration-200 min-w-[110px] ${BUTTON_STYLES.secondary} hover:transform hover:-translate-y-0.5`}
+            >
                   Dynamic Wallet
                 </button>
               </DynamicConnectButton>
@@ -1189,12 +1241,14 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     
     copyText(text).then(() => {
       const element = event.target;
-      const originalText = element.innerHTML;
-      element.innerHTML = 'Copied!';
-      element.classList.add('copy-success');
+      const originalHTML = element.innerHTML;
+      const originalClasses = element.className;
+      
+      element.innerHTML = '<span class="text-red-600 font-bold">Copied!</span>';
+      
       setTimeout(() => {
-        element.innerHTML = originalText;
-        element.classList.remove('copy-success');
+        element.innerHTML = originalHTML;
+        element.className = originalClasses;
       }, 1000);
     }).catch((err) => {
     });
@@ -1417,7 +1471,9 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     const handleClickOutside = (event) => {
       if (showContactList && 
           !event.target.closest('.contact-selector') && 
-          !event.target.closest('.contact-dropdown')) {
+          !event.target.closest('.contact-dropdown') &&
+          !event.target.closest('input') &&
+          !event.target.closest('button')) {
         setShowContactList(false);
       }
     };
@@ -1483,9 +1539,9 @@ function App({ chainId, appId, ownerId, inviter, port }) {
         setCooldownRemaining(0);
       }
       await gmOps.handleSetCooldownEnabled(enabled);
-      await (refetchCooldownStatus && refetchCooldownStatus());
-      await (refetchCooldownCheck && refetchCooldownCheck());
-      await (refetchGmRecord && refetchGmRecord());
+      await (refetchCooldownStatus && refetchCooldownStatus({ fetchPolicy: 'network-only' }));
+      await (refetchCooldownCheck && refetchCooldownCheck({ fetchPolicy: 'network-only' }));
+      await (refetchGmRecord && refetchGmRecord({ fetchPolicy: 'network-only' }));
       
       setOperationStatus("success");
       setTimeout(() => setOperationStatus(null), 3000);
@@ -1500,21 +1556,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
       setOperationStatus("error");
     }
   }, [currentAccount, setMessage, addNotification, gmOps, gmRecordData, refetchCooldownStatus, refetchCooldownCheck, refetchGmRecord]);
-
-
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-  
+ 
   useEffect(() => {
     if (currentAccount && currentChainId) {
       const syncCooldownStatus = () => {
@@ -1553,8 +1595,10 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     window.addEventListener('toggleInvitedUsersDropdown', handleToggleDropdown);
     
       const handleClickOutsideDropdown = (event) => {
-      const dropdownContainer = document.querySelector('.dropdown-container');
-      if (dropdownContainer && !dropdownContainer.contains(event.target)) {
+      const rewardSection = event.target.closest('.reward-section');
+      const dropdownMenu = document.querySelector('.invitation-sender')?.closest('div[class*="absolute"]');
+      
+      if (!rewardSection && !dropdownMenu) {
         setShowInvitedUsersDropdown(false);
       }
     };
@@ -2039,62 +2083,62 @@ function App({ chainId, appId, ownerId, inviter, port }) {
     <ErrorBoundary>
       <div>
         {showProfileSettings && (
-          <div className="modal-overlay">
-            <div className="profile-settings-modal">
-              <div className="modal-header">
-                <h3>Edit Profile</h3>
-                <button className="modal-close" onClick={handleCancelProfileEdit}>×</button>
+          <div className={`${MODAL_STYLES.overlay}`}>
+            <div className={`${MODAL_STYLES.content} p-6 w-full max-w-md`}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className={`${TEXT_STYLES.title}`}>Edit Profile</h3>
+                <button className="text-gray-500 hover:text-gray-700 text-2xl cursor-pointer" onClick={handleCancelProfileEdit}>×</button>
               </div>
               
               {profileSaveStatus && profileSaveMessage && (
-                <div className={`profile-save-message ${profileSaveStatus}`}>
+                <div className={`p-3 rounded-md mb-4 ${profileSaveStatus === 'success' ? NOTIFICATION_STYLES.success : NOTIFICATION_STYLES.error}`}>
                   {profileSaveMessage}
                 </div>
               )}
               
-              <div className="form-group">
-                <label>Username:</label>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Username:</label>
                 <input
                   type="text"
                   value={editUsername}
                   onChange={(e) => setEditUsername(e.target.value)}
                   placeholder="Enter username"
                   maxLength={20}
+                  className={`${INPUT_STYLES.base} focus:ring-blue-500`}
                 />
               </div>
-              <div className="form-group">
-                <label>Profile Photo:</label>
-                <div className="avatar-upload-container">
-                  <input
-                    type="file"
-                    id="avatar-upload"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    style={{ display: 'none' }}
-                  />
-                  <div 
-                    className="avatar-preview" 
-                    onClick={() => document.getElementById('avatar-upload').click()}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {avatarPreview ? (
-                      <img src={avatarPreview} alt="Preview" />
-                    ) : editAvatar ? (
-                      <img src={editAvatar} alt="Current avatar" />
-                    ) : (
-                      <div className="avatar-placeholder">No photo</div>
-                    )}
+              <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Profile Photo:</label>
+                  <div className="flex flex-col items-center gap-3">
+                    <input
+                      type="file"
+                      id="avatar-upload"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      style={{ display: 'none' }}
+                    />
+                    <div 
+                      className="w-32 h-32 rounded-full border-2 border-gray-200 overflow-hidden flex items-center justify-center bg-gray-800 cursor-pointer"
+                      onClick={() => document.getElementById('avatar-upload').click()}
+                    >
+                      {avatarPreview ? (
+                        <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
+                      ) : editAvatar ? (
+                        <img src={editAvatar} alt="Current avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">No photo</div>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => document.getElementById('avatar-upload').click()} className={`${BUTTON_STYLES.secondary} px-4 py-2 rounded-md`}>
+                      Upload Photo
+                    </button>
                   </div>
-                  <button type="button" onClick={() => document.getElementById('avatar-upload').click()} className="upload-button">
-                    Upload Photo
-                  </button>
                 </div>
-              </div>
-              <div className="modal-actions">
-                <button onClick={handleSaveProfile} disabled={uploading}>
+              <div className="flex justify-end gap-3 mt-6">
+                <button onClick={handleSaveProfile} disabled={uploading} className={`${BUTTON_STYLES.secondary} px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed`}>
                   {uploading ? 'Uploading...' : 'Save'}
                 </button>
-                <button onClick={handleCancelProfileEdit} disabled={uploading}>
+                <button onClick={handleCancelProfileEdit} disabled={uploading} className={`${BUTTON_STYLES.outline} px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed`}>
                   Close
                 </button>
               </div>
@@ -2102,34 +2146,33 @@ function App({ chainId, appId, ownerId, inviter, port }) {
           </div>
         )}
         <button 
-          className="referral-floating-btn"
+          className="fixed right-3 bottom-[calc(100vh-320px-4rem)] bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-none rounded-lg px-2 py-3 text-xs font-semibold cursor-pointer shadow-lg shadow-indigo-500/30 z-50 transition-all duration-300 flex items-center justify-center whitespace-nowrap transform rotate-90 hover:from-blue-600 hover:to-indigo-700 hover:shadow-xl hover:shadow-indigo-500/40 hover:scale-105"
           onClick={handleToggleShareReferral}
           title="Share your referral link"
         >
           🔗 Share Referral
         </button>
         {showShareReferralModal && (
-          <div className="modal-overlay" onClick={handleToggleShareReferral}>
-            <div className="referral-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3>Share Your Referral Link ✨</h3>
-                <button className="modal-close" onClick={handleToggleShareReferral}>×</button>
+          <div className={`${MODAL_STYLES.overlay} bg-black/70 z-[1001] animate-fadeIn`} onClick={handleToggleShareReferral}>
+            <div className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.2)] w-9/10 max-w-[500px] max-h-[80vh] overflow-y-auto animate-slideUp" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center p-3 border-b border-gray-200">
+                <h3 className={`m-0 ${TEXT_STYLES.title}`}>Share Your Referral Link ✨</h3>
+                <button className="bg-none border-none text-[28px] cursor-pointer text-gray-500 p-0 w-[30px] h-[30px] flex items-center justify-center rounded-full transition-all duration-200 hover:bg-gray-100 hover:text-gray-900" onClick={handleToggleShareReferral}>×</button>
               </div>
-              <div className="modal-content">
+              <div className="p-4">
                 {memoizedCurrentAccount && (
                   <>
-                    <div className="referral-stats">
+                    <div className="bg-gray-50 rounded-xl p-2 mb-3 shadow-sm">
                       <button 
-                        className="refresh-btn" 
+                        className={`${BUTTON_STYLES.outline} px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm`}
                         onClick={() => shareModalAdditionalData?.refetchInvitationStats && shareModalAdditionalData.refetchInvitationStats()}
                         title="Refresh invitation stats"
                       >
                         🔄 Refresh
                       </button>
-                      <div className="referral-stat-item">
-                        <div className="dropdown-container">
+                      <div className="mt-2">
+                        <div className="relative flex justify-between items-center py-1">
                           <div 
-                            className="referral-stat-label dropdown-toggle"
                             onClick={() => {
                               if (!shareModalAdditionalData?.invitationStatsData?.totalInvited || !currentAccount) return;
                               const event = new CustomEvent('toggleInvitedUsersDropdown', {
@@ -2140,37 +2183,37 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                             }}
                             style={{ cursor: shareModalAdditionalData?.invitationStatsData?.totalInvited > 0 ? 'pointer' : 'default' }}
                           >
-                            Invited Users: {showInvitedUsersDropdown ? '▲' : '▼'}
+                            <span className="text-sm text-gray-500">Invited Users: {showInvitedUsersDropdown ? '▲' : '▼'}</span>
                           </div>
-                          <span className="referral-stat-value">{(() => {
+                          <span className="text-base font-semibold text-red-500">{(() => {
                             try {
                               return Number(shareModalAdditionalData?.invitationStatsData?.totalInvited) || 0;
                             } catch (error) {
                               return 0;
                             }
                           })()}</span>
-                          <div className={`invited-users-dropdown ${showInvitedUsersDropdown ? 'show' : ''}`}>
+                          <div className={`absolute right-0 top-full mt-0 bg-white border border-gray-200 rounded-lg shadow-lg py-1 w-full max-w-[calc(100vw-4rem)] ${showInvitedUsersDropdown ? 'block' : 'hidden'}`}>
                             {invitedUsersLoading ? (
-                              <div className="invitation-loading">Loading...</div>
+                              <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>
                             ) : invitedUsers.length > 0 ? (
-                              <div className="invitation-list">
+                              <div>
                                 {invitedUsers.map((user, index) => (
-                                  <div key={index} className="invitation-item">
+                                  <div key={index} className="px-4 py-2 text-sm hover:bg-gray-50">
                                     <div className="invitation-sender">
-                                      {formatAddressForDisplay(user.invitee)}
+                                      {`${user.invitee.slice(0, 6)}...${user.invitee.slice(-4)}`}
                                     </div>
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <div className="invitation-empty">No invited users found</div>
+                              <div className="px-4 py-2 text-sm text-gray-500">No invited users found</div>
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="referral-stat-item">
-                        <span className="referral-stat-label">Your Reward Points:</span>
-                        <span className="referral-stat-value">{(() => {
+                      <div className="flex justify-between items-center py-1 border-t border-gray-200">
+                        <span className="text-sm text-gray-500">Your Reward Points:</span>
+                        <span className="text-base font-semibold text-red-500">{(() => {
                           try {
                             return Number(shareModalAdditionalData?.invitationStatsData?.totalRewards) || 0;
                           } catch (error) {
@@ -2182,9 +2225,9 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                         try {
                           const lastRewardTime = shareModalAdditionalData?.invitationStatsData?.lastRewardTime;
                           return lastRewardTime ? (
-                            <div className="referral-stat-item">
-                              <span className="referral-stat-label">Last Reward:</span>
-                              <span className="referral-stat-value">{new Date(Number(lastRewardTime) / 1000).toLocaleString()}</span>
+                            <div className="flex justify-between items-center py-1 border-t border-gray-200">
+                              <span className="text-sm text-gray-500">Last Reward:</span>
+                              <span className="text-sm font-semibold text-red-500">{new Date(Number(lastRewardTime) / 1000).toLocaleString()}</span>
                             </div>
                           ) : null;
                         } catch (error) {
@@ -2192,44 +2235,47 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                         }
                       })()}
                     </div>
-                    <div className="referral-link-section">
-                      <label>Your Referral Link:</label>
-                      <div className="link-container">
+                    <div className="mb-3">
+                      <label className="block mb-1 text-sm font-semibold text-gray-900">Your Referral Link:</label>
+                      <div className="flex gap-2">
                         <input 
                           type="text" 
                           value={`${window.location.origin}?inviter=${memoizedCurrentAccount}`}
                           readOnly
-                          className="referral-link-input"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/20 shadow-sm"
                         />
-                        <button onClick={copyReferralLink} className={`copy-btn ${copySuccess ? 'copied' : ''}`}>
+                        <button 
+                          className={`${BUTTON_STYLES.primary} border-none rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer transition-all duration-200 shadow-md shadow-red-500/20 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-500/30 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-none ${copySuccess ? 'copy-success' : ''}`}
+                          onClick={copyReferralLink}
+                        >
                           {copySuccess ? 'Copied!' : 'Copy'}
                         </button>
                       </div>
                     </div>
-                    <div className="share-options">
-                      <p className="share-label">Share directly:</p>
-                      <div className="social-buttons">
+                    <div className="mb-6">
+                      <p className="text-sm font-semibold text-gray-900 mb-1">Share directly:</p>
+                      <div className="grid grid-cols-2 gap-3">
                         <a 
                           href={`https://twitter.com/intent/tweet?text=Join%20GMicrochains%20and%20use%20my%20referral%20link!&url=${encodeURIComponent(window.location.origin + '?inviter=' + memoizedCurrentAccount)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="social-btn twitter"
+                          className={`${BUTTON_STYLES.secondary} border-none rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer transition-all duration-200 shadow-md shadow-[#1DA1F2]/20 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#1DA1F2]/30 active:translate-y-0 active:scale-98 inline-block text-center disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:transform-none`}
                         >
-                          Twitter
+                          🐦 Twitter
                         </a>
                         <a 
                           href={`https://t.me/share/url?url=${encodeURIComponent(window.location.origin + '?inviter=' + memoizedCurrentAccount)}&text=Join%20GMicrochains%20and%20use%20my%20referral%20link!`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="social-btn telegram"
+                          className={`${BUTTON_STYLES.secondary} border-none rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer transition-all duration-200 shadow-md shadow-[#2CA5E0]/20 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#2CA5E0]/30 active:translate-y-0 active:scale-98 inline-block text-center disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:transform-none`}
                         >
-                          Telegram
+                          📱 Telegram
                         </a>
                       </div>
                     </div>
-                    <div className="referral-rewards-info">
-                      <p>Invite a user to send their first GMIC → 30 points</p>
-                      <p>Each GMIC they send after → +10 points</p>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs leading-relaxed text-gray-600 shadow-sm">
+                      <p className="mb-2">🎁 <strong>Invite a user to send their first GMIC → 30 points</strong></p>
+                      <p>🎯 <strong>Each GMIC they send after → +10 points</strong></p>
                     </div>
                   </>
                 )}
@@ -2242,78 +2288,82 @@ function App({ chainId, appId, ownerId, inviter, port }) {
             </div>
           </div>
         )}
-        <header className="top-navbar">
-          <div className="navbar-container">
-            <div className="logo">
-              <img src="/GMic.png" alt="GMIC Logo" className="logo-img" />
+        <header className={`${HEADER_STYLES.base}`}>
+          <div className={`${HEADER_STYLES.container}`}>
+            <div className="flex items-center gap-4 flex-shrink-0">
+              <div className="flex items-center gap-1.5">
+                <img src="/GMic.png" alt="GMIC Logo" className="w-[70px] h-auto object-contain" />
+              </div>
+              <nav className="flex gap-6 items-center">
+                <button 
+                  className={`${NAVIGATION_STYLES.tab} ${activeTab === 'messages' ? NAVIGATION_STYLES.active : NAVIGATION_STYLES.inactive}`}
+                  onClick={() => setActiveTab('messages')}
+                >
+                  Messages
+                </button>
+                <button 
+                  className={`${NAVIGATION_STYLES.tab} ${activeTab === 'leaderboards' ? NAVIGATION_STYLES.active : NAVIGATION_STYLES.inactive}`}
+                  onClick={() => {
+                    setActiveTab('leaderboards');
+                    setShowLeaderboard(true);
+                    setTimeout(() => {
+                      const shouldRefetch = (
+                        !additionalData.leaderboardData?.getTopUsers || 
+                        additionalData.leaderboardData.getTopUsers.length === 0 ||
+                        (additionalData.leaderboardData && !additionalData.leaderboardData.getTopUsers) ||
+                        additionalData.leaderboardError
+                      );
+                      
+                      if (shouldRefetch && additionalData.refetchLeaderboard) {
+                        additionalData.refetchLeaderboard();
+                      }
+                      if (additionalData.refetchInvitationLeaderboard) {
+                        additionalData.refetchInvitationLeaderboard();
+                      }
+                    }, 0);
+                  }}
+                >
+                  Leaderboards
+                </button>
+                <button 
+                  className={`${NAVIGATION_STYLES.tab} ${activeTab === 'settings' ? NAVIGATION_STYLES.active : NAVIGATION_STYLES.inactive}`}
+                  onClick={() => setActiveTab('settings')}
+                >
+                  Settings
+                </button>
+              </nav>
             </div>
-            <nav className="nav-links">
-              <button 
-                className={`nav-tab ${activeTab === 'messages' ? 'active' : ''}`}
-                onClick={() => setActiveTab('messages')}
-              >
-                Messages
-              </button>
-              <button 
-                className={`nav-tab ${activeTab === 'leaderboards' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveTab('leaderboards');
-                  setShowLeaderboard(true);
-                  setTimeout(() => {
-                    const shouldRefetch = (
-                      !additionalData.leaderboardData?.getTopUsers || 
-                      additionalData.leaderboardData.getTopUsers.length === 0 ||
-                      (additionalData.leaderboardData && !additionalData.leaderboardData.getTopUsers) ||
-                      additionalData.leaderboardError
-                    );
-                    
-                    if (shouldRefetch && additionalData.refetchLeaderboard) {
-                      additionalData.refetchLeaderboard();
-                    }
-                    if (additionalData.refetchInvitationLeaderboard) {
-                      additionalData.refetchInvitationLeaderboard();
-                    }
-                  }, 0);
-                }}
-              >
-                Leaderboards
-              </button>
-              <button 
-                className={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`}
-                onClick={() => setActiveTab('settings')}
-              >
-                Settings
-              </button>
-            </nav>
-            <WalletConnectionSection 
-              isDynamicConnected={isDynamicConnected}
-              isActiveDynamicWallet={isActiveDynamicWallet}
-              currentAccount={currentAccount}
-              isDynamicLoading={isDynamicLoading}
-              currentIsConnected={currentIsConnected}
-              disconnectDynamicWallet={() => disconnectDynamicWallet(disconnectWallet)}
-              addNotification={addNotification}
-              dynamicAccount={dynamicAccount}
-              connectWallet={connectWallet}
-              disconnectWallet={disconnectWallet}
-              walletType={walletType}
-              isLoading={walletLoading}
-              primaryWallet={primaryWallet}
-            />
+            <div className="flex items-center gap-3">
+              <WalletConnectionSection 
+                isDynamicConnected={isDynamicConnected}
+                isActiveDynamicWallet={isActiveDynamicWallet}
+                currentAccount={currentAccount}
+                isDynamicLoading={isDynamicLoading}
+                currentIsConnected={currentIsConnected}
+                disconnectDynamicWallet={() => disconnectDynamicWallet(disconnectWallet)}
+                addNotification={addNotification}
+                dynamicAccount={dynamicAccount}
+                connectWallet={connectWallet}
+                disconnectWallet={disconnectWallet}
+                walletType={walletType}
+                isLoading={walletLoading}
+                primaryWallet={primaryWallet}
+              />
+            </div>
           </div>
         </header>
       </div>
-      <div className="App-content">
-        <div className="App">
-          <div className="App-header">
+      <div className="mx-[1.2rem]">
+        <div className="max-w-[800px] mx-auto p-4">
+          <div className="flex flex-col gap-3">
             {walletError && (
               <div className="alert error">{walletError}</div>
             )}
 
             {activeTab === 'settings' && currentIsConnected && (
-              <div className="card wallet-card">
-                <div className="user-profile-section">
-                  <div className="user-profile-content">
+              <div className="bg-gradient-to-br to-cyan-50 rounded-2xl shadow-xl border border-blue-200 p-6 mb-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.01]">
+                <div className="mb-4">
+                  <div className="flex items-center gap-4">
                     <UserProfile 
                       address={currentAccount}
                       userData={userProfile}
@@ -2321,50 +2371,49 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                       size={64}
                       showAddress={true}
                       truncateAddress={true}
+                      onEditProfile={() => {
+                        if (userProfile) {
+                          setEditUsername(userProfile.username || '');
+                          setEditAvatar(userProfile.avatar || '');
+                        } else {
+                          setEditUsername('');
+                          setEditAvatar('');
+                        }
+                        setShowProfileSettings(true);
+                      }}
+                      className="cursor-pointer transition-all duration-200 hover:scale-105"
                     />
-                    <button className="edit-profile-btn" onClick={() => {
-                      if (userProfile) {
-                        setEditUsername(userProfile.username || '');
-                        setEditAvatar(userProfile.avatar || '');
-                      } else {
-                        setEditUsername('');
-                        setEditAvatar('');
-                      }
-                      setShowProfileSettings(true);
-                    }}>
-                      Edit Profile
-                    </button>
                   </div>
                 </div>
-                <div className="wallet-info">
-                  <div className="wallet-status">
-                    <div className="wallet-item">
-                      <span className="label">Wallet Type:</span>
-                      <span className="wallet-type">
+                <div className="space-y-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center bg-gray-50 rounded-lg p-1">
+                      <span className="font-medium text-gray-700 mr-2 min-w-[120px]">Wallet Type:</span>
+                      <span className={`${TEXT_STYLES.body}`}>
                         {walletType === 'dynamic' ? 'Dynamic Wallet' : 'Linera Wallet'}
                       </span>
                     </div>
                     {currentAccount && (
-                      <div className="wallet-item">
-                        <span className="label">Wallet Address:</span>
-                        <span 
-                          className="address-simple"
-                          onClick={(e) => copyToClipboard(currentAccount, e)}
-                          title="Click to copy wallet address"
-                        >
-                          {isMobile ? `${currentAccount.slice(0, 8)}...${currentAccount.slice(-6)}` : currentAccount}
-                        </span>
+                      <div className="flex items-center bg-gray-50 rounded-lg p-1">
+                        <span className="font-medium text-gray-700 mr-2 min-w-[120px]">Wallet Address:</span>
+                      <span 
+                        className="text-sm text-gray-600 cursor-pointer break-all hover:text-gray-800 transition-colors"
+                        onClick={(e) => copyToClipboard(currentAccount, e)}
+                        title="Click to copy wallet address"
+                      >
+                        {appState.ui.isMobile ? `${currentAccount.slice(0, 8)}...${currentAccount.slice(-6)}` : currentAccount}
+                      </span>
                       </div>
                     )}
                     {connectedWalletChainId && (
-                      <div className="wallet-item">
-                        <span className="label">Wallet Chain:</span>
+                      <div className="flex items-center bg-gray-50 rounded-lg p-1">
+                        <span className="font-medium text-gray-700 mr-2 min-w-[120px]">Wallet Chain:</span>
                         <span 
-                          className="address-simple"
+                          className="text-sm text-gray-600 cursor-pointer break-all hover:text-gray-800 transition-colors"
                           onClick={(e) => copyToClipboard(connectedWalletChainId, e)}
                           title="Click to copy wallet chain"
                         >
-                          {isMobile ? `${connectedWalletChainId.slice(0, 8)}...${connectedWalletChainId.slice(-6)}` : connectedWalletChainId}
+                          {appState.ui.isMobile ? `${connectedWalletChainId.slice(0, 8)}...${connectedWalletChainId.slice(-6)}` : connectedWalletChainId}
                         </span>
                       </div>
                     )}
@@ -2384,19 +2433,19 @@ function App({ chainId, appId, ownerId, inviter, port }) {
             {activeTab === 'messages' && (
               <>
                 {gmOps.loading && !gmOps.data && <div className="loading">Loading statistics...</div>}
-                <div className="card stats-card">                  
-                  <div className="stats-panel">
-                    <div className="stats-left">
-                      <div className="stats-vertical">
-                        <div className="stat-row">
-                          <span className="stat-label">Total GMIC：</span>
-                          <span className="stat-value">
+                <div className="bg-white border-2 border-[rgba(0,123,255,0.1)] rounded-xl px-4 py-2 shadow-sm w-full animate-fadeIn transition-all duration-300 hover:shadow-md">                  
+                  <div className="flex justify-between items-start">
+                    <div className="flex-0 flex-shrink-0 w-[15%] flex flex-col gap-2.5 pl-3">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[0.5rem] text-gray-600 font-medium uppercase tracking-[0.5px]">Total GMIC：</span>
+                          <span className="text-xl font-light text-[#ff2a00] font-mono leading-[1.25rem]">
                             {gmOps.data?.totalMessages ?? (gmOps.loading ? '***' : '0')}
                           </span>
                         </div>
-                        <div className="stat-row">
-                          <span className="stat-label">Your GMIC：</span>
-                          <span className="stat-value">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[0.5rem] text-gray-600 font-medium uppercase tracking-[0.5px]">Your GMIC：</span>
+                          <span className="text-xl font-light text-[#ff2a00] font-mono leading-[1.25rem]">
                             {currentIsConnected && gmOps.isValidAccountOwner(currentAccount) && gmOps.walletMessagesData?.walletMessages !== null ? (
                               gmOps.walletMessagesData.walletMessages
                             ) : (
@@ -2406,18 +2455,18 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                         </div>
                       </div>
                     </div>
-                    <div className="cooldown-timer-container">
-                      <div className="cooldown-timer-header">
-                        <div className="cooldown-timer-label">Cooldown Timer</div>
-                        <div className="cooldown-timer-status" data-status={localCooldownEnabled ? 'enabled' : 'disabled'}>
+                    <div className="flex-0 flex-shrink-0 w-[85%] flex flex-col gap-2 p-4">
+                      <div className="flex justify-between items-center">
+                        <div className="text-xs font-semibold text-[#ff2a00]">Cooldown Timer</div>
+                        <div className={`text-xs font-semibold ${localCooldownEnabled ? 'text-[#ff2a00]' : 'text-[#4ade80]'}`} data-status={localCooldownEnabled ? 'enabled' : 'disabled'}>
                           {localCooldownEnabled ? 'Enabled' : 'Disabled'}
                         </div>
                       </div>
-                      <div className="cooldown-timer-bar-container">
-                        <div className="cooldown-timer-bar">
-                          <div className="cooldown-timer-track"></div>
+                      <div>
+                        <div className="w-full h-1 relative rounded-lg">
+                          <div className="absolute inset-0 bg-[rgba(255,42,0,0.1)] rounded-lg"></div>
                           <div 
-                            className={`cooldown-timer-fill ${localCooldownEnabled ? 'active' : 'inactive'} ${cooldownRemaining > 0 ? 'cooldown-remaining' : 'cooldown-complete'}`}
+                            className={`absolute top-0 left-0 h-full rounded-lg transition-all duration-300 ${localCooldownEnabled ? (cooldownRemaining > 0 ? 'bg-gradient-to-r from-[#4ade80] via-[#ffa500] to-[#ff2a00]' : 'bg-[#4ade80]') : 'w-full bg-[#4ade80]'}`}
                             style={{ 
                               width: localCooldownEnabled ? 
                                 (cooldownRemaining > 0 ? 
@@ -2428,7 +2477,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                           ></div>
                           {localCooldownEnabled && cooldownRemaining > 0 && (
                             <div 
-                              className={`cooldown-timer-countdown ${((cooldownRemaining / 86400000) * 100) > 90 ? 'below' : 'right'}`}
+                              className="absolute text-black text-xs font-medium px-1.5 py-0.5 rounded bg-white shadow-sm whitespace-nowrap z-10 pointer-events-none transition-all duration-300 top-full transform -translate-x-1/2 translate-y-1"
                               style={{ 
                                 left: `${Math.max(0, Math.min(100, (cooldownRemaining / 86400000) * 100))}%`
                               }}
@@ -2446,39 +2495,35 @@ function App({ chainId, appId, ownerId, inviter, port }) {
         
             {(additionalData.whitelistData?.isUserWhitelisted === true) && activeTab === 'settings' && (
               <>
-                <div className="card cooldown-control-card">
-                  <div className="section-header">
-                    <h3>24-Hour Limit Control</h3>
-                    <span className="whitelist-badge">Whitelist Only</span>
-                  </div>
-                  <div className="cooldown-control-content">
-                    <div className="cooldown-status-info">
-                      <p className="cooldown-status-text">
-                        Current Status: <span className={`status ${additionalData.cooldownStatusData?.getCooldownStatus?.enabled ? 'enabled' : 'disabled'}`}>
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-xl border border-purple-200 p-6 mb-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.01]">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800 mb-1">24-Hour Limit Settings</h3>
+                      <p className="text-sm text-gray-600">Current Status: <span className={`font-bold ${additionalData.cooldownStatusData?.getCooldownStatus?.enabled ? 'text-green-600' : 'text-red-600'}`}>
                           {additionalData.cooldownStatusData?.getCooldownStatus?.enabled ? 'ENABLED' : 'DISABLED'}
-                        </span>
-                      </p>
-                      <p className="cooldown-description">
-                        {additionalData.cooldownStatusData?.getCooldownStatus?.enabled 
-                          ? '24-hour cooldown is currently active for all users' 
-                          : '24-hour cooldown is currently disabled'
-                        }
-                      </p>
+                        </span></p>
                     </div>
-                    <div className="cooldown-control-actions">
+                    <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full text-xs font-semibold shadow-sm">Whitelist Only</span>
+                  </div>
+                  <div className="p-2 bg-white/50 rounded-lg border border-gray-200/50">
+                    <div className="mt-2">
                       <button
-                        className={`action-btn ${additionalData.cooldownStatusData?.getCooldownStatus?.enabled ? 'danger' : 'primary'}`}
+                        className={`w-full px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 shadow-md ${
+                          additionalData.cooldownStatusData?.getCooldownStatus?.enabled 
+                            ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600 hover:shadow-lg hover:scale-[1.02]' 
+                            : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 hover:shadow-lg hover:scale-[1.02]'
+                        } ${operationStatus === "processing" ? 'opacity-60 cursor-not-allowed hover:scale-100' : ''}`}
                         onClick={() => handleToggleCooldown(!additionalData.cooldownStatusData?.getCooldownStatus?.enabled)}
                         disabled={operationStatus === "processing"}
                       >
                         {operationStatus === "processing" ? (
-                          <span className="button-loading">
-                            <span className="spinner">⏳</span> Updating...
+                          <span className="flex items-center justify-center gap-2">
+                            <span className="animate-spin">⏳</span> Updating...
                           </span>
                         ) : additionalData.cooldownStatusData?.getCooldownStatus?.enabled ? (
-                          "🔓 Disable 24-Hour Limit"
+                          <span className="flex items-center justify-center gap-2">🔓 Disable 24-Hour Limit</span>
                         ) : (
-                          "🔒 Enable 24-Hour Limit"
+                          <span className="flex items-center justify-center gap-2">🔒 Enable 24-Hour Limit</span>
                         )}
                       </button>
                     </div>
@@ -2489,13 +2534,14 @@ function App({ chainId, appId, ownerId, inviter, port }) {
 
             {activeTab === 'settings' && (
               <>
-                <div className="card chain-selection-card">
-                  <div className="section-header">
-                    <h3>Target Chain</h3>
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl shadow-xl border border-blue-200 p-6 mb-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.01]">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-bold text-gray-800">Target Chain Settings</h3>
+                    <p className="text-sm text-gray-600 mt-1">Select the chain for your operations</p>
                   </div>
-                  <div className="chain-options">
+                  <div className="space-y-4 bg-white/50 p-4 rounded-lg border border-gray-200/50">
                     {walletType === 'dynamic' ? (
-                      <div className="chain-option">
+                      <div className="flex items-center space-x-3">
                         <input
                           type="radio"
                           id="contract-chain"
@@ -2503,18 +2549,19 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                           value={chainId}
                           checked={true}
                           disabled={true}
+                          className="h-4 w-4 text-[#ff2a00] focus:ring-[#ff2a00]"
                         />
-                        <label htmlFor="contract-chain" className="chain-label">
-                          <span className="chain-name">Contract Chain：</span>
-                          <span className="chain-address">
-                            {formatAddressForDisplay(chainId, isMobile, 8, 6)}
+                        <label htmlFor="contract-chain" className="flex items-center cursor-pointer transition-all duration-200 hover:bg-gray-50/50 p-2 rounded-lg">
+                          <span className="font-medium text-gray-800 mr-3 w-32 flex-shrink-0 tracking-tight">Contract Chain：</span>
+                          <span className={`text-sm ${targetChainId === chainId ? 'text-gray-700 font-medium truncate' : 'text-gray-600'}`}>
+                            {formatAddressForDisplay(chainId, appState.ui.isMobile, 8, 6)}
                           </span>
                         </label>
                       </div>
                     ) : (
                       <>
                         {connectedWalletChainId && (
-                          <div className="chain-option">
+                          <div className="flex items-center space-x-3">
                             <input
                               type="radio"
                               id="wallet-chain"
@@ -2525,16 +2572,17 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                                 isManualTargetChainChange.current = true;
                                 setTargetChainId(connectedWalletChainId);
                               }}
+                              className="h-4 w-4 text-[#ff2a00] focus:ring-[#ff2a00]"
                             />
-                            <label htmlFor="wallet-chain" className="chain-label">
-                              <span className="chain-name">Wallet Chain：</span>
-                              <span className="chain-address">
-                                {formatAddressForDisplay(connectedWalletChainId, isMobile, 8, 6)}
-                              </span>
-                            </label>
+                            <label htmlFor="wallet-chain" className="flex items-center cursor-pointer transition-all duration-200 hover:bg-gray-50/50 p-2 rounded-lg">
+                          <span className="font-medium text-gray-800 mr-3 w-32 flex-shrink-0 tracking-tight">Wallet Chain：</span>
+                          <span className={`text-sm ${targetChainId === connectedWalletChainId ? 'text-gray-700 font-medium truncate' : 'text-gray-600'}`}>
+                            {formatAddressForDisplay(connectedWalletChainId, appState.ui.isMobile, 8, 6)}
+                          </span>
+                        </label>
                           </div>
                         )}
-                        <div className="chain-option">
+                        <div className="flex items-center space-x-3">
                           <input
                             type="radio"
                             id="contract-chain"
@@ -2545,11 +2593,12 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                               isManualTargetChainChange.current = true;
                               setTargetChainId(chainId);
                             }}
+                            className="h-4 w-4 text-[#ff2a00] focus:ring-[#ff2a00]"
                           />
-                          <label htmlFor="contract-chain" className="chain-label">
-                            <span className="chain-name">Contract Chain：</span>
-                            <span className="chain-address">
-                              {formatAddressForDisplay(chainId, isMobile, 8, 6)}
+                          <label htmlFor="contract-chain" className="flex items-center cursor-pointer transition-all duration-200 hover:bg-gray-50/50 p-2 rounded-lg">
+                            <span className="font-medium text-gray-800 mr-3 w-32 flex-shrink-0 tracking-tight">Contract Chain：</span>
+                            <span className={`text-sm ${targetChainId === chainId ? 'text-gray-700 font-medium truncate' : 'text-gray-600'}`}>
+                              {formatAddressForDisplay(chainId, appState.ui.isMobile, 8, 6)}
                             </span>
                           </label>
                         </div>
@@ -2558,39 +2607,39 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                   </div>
                 </div>
                 
-                <div className="card chain-info-card">
-                  <div className="section-header">
-                    <h3>Chain Information</h3>
+                <div className="bg-white rounded-xl shadow-lg border-2 border-gray-200 p-6 transition-all duration-300 hover:shadow-xl">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800">Chain Information</h3>
                   </div>
-                  <div className="chain-info">
-                    <p>
-                      <span className="label">Application ID:</span>
+                  <div className="space-y-3">
+                    <p className="flex items-center">
+                      <span className="font-medium text-gray-700 mr-2 min-w-[120px]">Application ID:</span>
                       <span 
-                        className="address-simple"
+                        className="text-sm text-gray-600 cursor-pointer break-all"
                         onClick={(e) => copyToClipboard(appId, e)}
                         title="Click to copy Application ID"
                       >
-                        {formatAddressForDisplay(appId, isMobile, 8, 6)}
+                        {formatAddressForDisplay(appId, appState.ui.isMobile, 8, 6)}
                       </span>
                     </p>
-                    <p>
-                      <span className="label">Contract Chain:</span>
+                    <p className="flex items-center">
+                      <span className="font-medium text-gray-700 mr-2 min-w-[120px]">Contract Chain:</span>
                       <span 
-                        className="address-simple"
+                        className="text-sm text-gray-600 cursor-pointer break-all"
                         onClick={(e) => copyToClipboard(chainId, e)}
                         title="Click to copy Contract chain"
                       >
-                        {formatAddressForDisplay(chainId, isMobile, 8, 6)}
+                        {formatAddressForDisplay(chainId, appState.ui.isMobile, 8, 6)}
                       </span>
                     </p>
-                    <p>
-                      <span className="label">Contract Owner:</span>
+                    <p className="flex items-center">
+                      <span className="font-medium text-gray-700 mr-2 min-w-[120px]">Contract Owner:</span>
                       <span 
-                        className="address-simple"
+                        className="text-sm text-gray-600 cursor-pointer break-all"
                         onClick={(e) => copyToClipboard(ownerId, e)}
                         title="Click to copy contract owner"
                       >
-                        {formatAddressForDisplay(ownerId, isMobile, 8, 6)}
+                        {formatAddressForDisplay(ownerId, appState.ui.isMobile, 8, 6)}
                       </span>
                     </p>
                   </div>
@@ -2600,37 +2649,34 @@ function App({ chainId, appId, ownerId, inviter, port }) {
 
             {activeTab === 'messages' && (
               <>
-                <div className="card chat-history-card">
-                  <ChatHistory 
-                    currentAccount={currentAccount} 
-                    isMobile={isMobile} 
-                    gmOps={gmOps} 
-                    currentChatPartner={currentChatPartner}
-                    onChatPartnerChange={handleChatPartnerChange}
-                    currentIsConnected={currentIsConnected}
-                  />
-                </div>
+                <ChatHistory 
+                  currentAccount={currentAccount} 
+                  isMobile={appState.ui.isMobile} 
+                  gmOps={gmOps} 
+                  currentChatPartner={currentChatPartner}
+                  onChatPartnerChange={handleChatPartnerChange}
+                  currentIsConnected={currentIsConnected}
+                />
 
-                <div className="card send-action-card">
-                  <div className="selected-recipient">
-                    <span className="recipient-label">To:</span>
+                <div className={`${CARD_STYLES.base} border border-[rgba(255,42,0,0.15)] p-4 transition-all duration-300 hover:shadow-lg hover:shadow-[rgba(255,42,0,0.2)] relative z-10 overflow-visible`}>
+                  <div className="flex items-center p-2 px-3 mb-3 bg-[rgba(255,42,0,0.1)] rounded-lg border border-[rgba(255,42,0,0.2)] text-sm animate-fadeIn">
+                    <span className="font-medium mr-2">To:</span>
                     {currentChatPartner ? (
                       <>
-                        <span className="recipient-avatar">👤</span>
-                        <span className="recipient-address">{formatAddressForDisplay(currentChatPartner, isMobile, 6, 4)}</span>
+                        <span className="text-xl mr-2">👤</span>
+                        <span className={`${TEXT_STYLES.body} font-medium`}>{formatAddressForDisplay(currentChatPartner, appState.ui.isMobile, 6, 4)}</span>
                       </>
                     ) : (
                       <>
-                        <span className="recipient-avatar">🤖</span>
-                        <span className="recipient-info">
-                            <span className="recipient-name">GMIC Bot </span>
-                            <span className="recipient-address">(Default Receiver)</span>
+                        <span className="text-xl mr-2">🤖</span>
+                        <span className="flex items-center">
+                            <span className="font-semibold">GMIC Bot (Default Receiver)</span>
                           </span>
                       </>
                     )}
                     {currentChatPartner && (
                       <button 
-                        className="clear-recipient-btn"
+                        className="ml-auto text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
                         onClick={() => handleChatPartnerChange(null)}
                         title="Clear recipient"
                       >
@@ -2639,51 +2685,62 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                     )}
                   </div>
 
-                  <div className="send-actions">
-                    <div className="send-button-container">
+                  <div className="relative flex items-center">
+                    <div className="flex items-center w-full">
                       <button 
-                        className={`voice-toggle ${isVoiceMode ? 'active' : ''}`}
+                        className={`mr-2 p-2 rounded-full hover:bg-gray-100 hover:scale-105 transition-all duration-300 ease ${isVoiceMode ? 'bg-blue-50 text-blue-500 border-2 border-blue-200' : 'border border-gray-200'}`}
                         onClick={() => setIsVoiceMode(!isVoiceMode)}
                         disabled={isButtonDisabled(operationStatus, currentAccount, gmOps, cooldownRemaining, localCooldownEnabled, currentIsConnected)}
                         title={isVoiceMode ? "Switch to text mode" : "Switch to voice mode"}
                       >
-                        <div className="icon-container">
-                        <div className={`icon-wrapper ${isVoiceMode ? 'show-keyboard' : 'show-voice'}`}>
-                          <KeyboardIcon className="keyboard-icon" />
-                          <VoiceIcon className="voice-icon" />
+                        <div className={`h-6 w-6 flex items-center justify-center`}>
+                          <KeyboardIcon className={`absolute transition-all duration-300 ease ${isVoiceMode ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`} />
+                          <VoiceIcon className={`absolute transition-all duration-300 ease text-[1.1rem] ${isVoiceMode ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`} />
                         </div>
-                      </div>
                       </button>
                       
                       {isVoiceMode ? (
                         <button 
-                          className={`send-button voice-mode ${isLongPressing ? 'long-pressing' : ''}`} 
-                          id="sendButton"
-                          onMouseDown={handleVoicePressStart}
-                          onMouseUp={handleVoicePressEnd}
-                          onMouseLeave={handleVoicePressEnd}
-                          onTouchStart={handleVoicePressStart}
-                          onTouchEnd={handleVoicePressEnd}
-                          disabled={isButtonDisabled(operationStatus, currentAccount, gmOps, cooldownRemaining, localCooldownEnabled, currentIsConnected) || isSendingMessage}
-                        >
+                            className={`${CHAT_STYLES.button} flex-grow py-2.5 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 ${isLongPressing ? 'bg-[#ff4522] scale-105' : ''}`} 
+                            id="sendButton"
+                            onMouseDown={handleVoicePressStart}
+                            onMouseUp={handleVoicePressEnd}
+                            onMouseLeave={handleVoicePressEnd}
+                            onTouchStart={handleVoicePressStart}
+                            onTouchEnd={handleVoicePressEnd}
+                            disabled={isButtonDisabled(operationStatus, currentAccount, gmOps, cooldownRemaining, localCooldownEnabled, currentIsConnected) || isSendingMessage}
+                          >
                           {operationStatus === "processing" ? (
-                            <span className="button-loading">
-                              <span className="spinner">⏳</span> Sending...
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="animate-spin">⏳</span>
+                              <span>Sending...</span>
+                            </div>
                           ) : !currentIsConnected ? (
-                            "🔒 Connect wallet"
+                            <div className="flex items-center gap-2">
+                              <span>🔒</span>
+                              <span>Connect wallet</span>
+                            </div>
                           ) : !gmOps.isValidAccountOwner(currentAccount) ? (
-                            "🔒 Invalid account"
+                            <div className="flex items-center gap-2">
+                              <span>🔒</span>
+                              <span>Invalid account</span>
+                            </div>
                           ) : localCooldownEnabled && cooldownRemaining > 0 ? (
-                            `🔓 ${gmOps.formatCooldown(cooldownRemaining)}`
+                            <div className="flex items-center gap-2">
+                              <span>🔓</span>
+                              <span>{gmOps.formatCooldown(cooldownRemaining)}</span>
+                            </div>
                           ) : (
-                            "🎤 Hold to speak"
+                            <div className="flex items-center gap-2">
+                              <VoiceIcon className="w-5 h-5" />
+                              <span>Hold to speak</span>
+                            </div>
                           )}
                         </button>
                       ) : (
-                        <div className="message-input-wrapper">
+                        <div className="flex-grow mx-2 relative flex items-center">
                           <textarea 
-                            className="message-input"
+                            className={`${CHAT_STYLES.input} overflow-hidden resize-none`}
                             placeholder={
                               !currentIsConnected ? "Please connect wallet" :
                               !gmOps.isValidAccountOwner(currentAccount) ? "Invalid account" :
@@ -2693,10 +2750,13 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                             value={customMessageEnabled ? customMessage : ""}
                             onChange={(e) => {
                               if (customMessageEnabled) {
-                                handleCustomMessageChange(e);                              
-                                const textarea = e.target;
-                                textarea.style.height = 'auto';
-                                textarea.style.height = textarea.scrollHeight + 'px';
+                                const newValue = e.target.value;
+                                if (newValue.length <= 280) {
+                                  handleCustomMessageChange(e);                              
+                                  const textarea = e.target;
+                                  textarea.style.height = 'auto';
+                                  textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+                                }
                               }
                             }}
                             onFocus={() => {
@@ -2706,7 +2766,6 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                               setMessageInputFocused(false);
                             }}
                             onKeyDown={(e) => {
-
                               if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
                                 if (messageInputFocused && currentIsConnected && !isSendingMessage) {
@@ -2716,12 +2775,18 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                             }}
                             autoFocus={false}
                             rows={1}
+                            maxLength={500}
                             disabled={!currentIsConnected || !gmOps.isValidAccountOwner(currentAccount) || (localCooldownEnabled && cooldownRemaining > 0)}
                           />
-                          <div className={`contact-selector ${currentChatPartner ? 'hidden' : ''} ${showContactList ? 'active' : ''}`}>
+                          {customMessageEnabled && customMessage.length > 0 && (
+                            <div className="absolute bottom-1 right-10 text-xs text-gray-500 bg-white/80 px-1 rounded">
+                              {customMessage.length}/500
+                            </div>
+                          )}
+                          <div className={`absolute right-2 top-1/2 transform -translate-y-1/2 z-10 ${currentChatPartner ? 'hidden' : ''} ${showContactList ? 'active' : ''}`}>
                             {!showHistoryDropdown && !currentChatPartner && (
                               <div 
-                                className="contact-avatar"
+                                className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm transition-all duration-300"
                                 onClick={() => {
                                   if (!currentIsConnected || !gmOps.isValidAccountOwner(currentAccount) || (localCooldownEnabled && cooldownRemaining > 0)) {
                                     return;
@@ -2743,12 +2808,12 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                               </div>
                             )}
                             {showContactList && (
-                              <div className="contact-dropdown">
-                                <div className="contact-list">
+                              <div className="absolute bottom-full right-0 bg-white border border-gray-300 rounded-lg shadow-[0_-4px_12px_rgba(0,0,0,0.1)] z-50 min-w-[330px] mb-1 animate-[contactDropdownFadeIn_0.2s_ease-out] sm:min-w-[280px] sm:right-[-10px] contact-dropdown">
+                                <div className="py-2">
                                   <div 
-                                    className="contact-item"
+                                    className="flex items-center p-2.5 px-3 cursor-pointer transition-all duration-200 gap-2.5 rounded-md mx-1 hover:bg-gray-100 hover:translate-x-0.5 active:translate-x-0"
                                     onClick={() => {
-                                      const wuya51Address = '0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959';
+                                      const wuya51Address = import.meta.env.VITE_WHITELIST_ADDRESS;
 
                                       if (currentAccount && currentAccount.toLowerCase() === wuya51Address.toLowerCase()) {
                                         addNotification('Cannot send GMicrochains to yourself', 'error');
@@ -2758,21 +2823,20 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                                       setRecipientAddress(wuya51Address);
                                       setCurrentChatPartner(wuya51Address);
                                       setShowContactList(false);
-
                                     }}
                                   >
-                                    <span className="contact-avatar">
+                                    <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm overflow-hidden">
                                       <img 
                                         src="https://salmon-main-vole-335.mypinata.cloud/ipfs/QmXNeLnSbwDbQUUCh9bTP8H72votCHMEXxtfoMqhXPB4g1" 
                                         alt="Avatar" 
-                                        className="avatar-image"
+                                        className="w-full h-full object-cover"
                                       />
                                     </span>
-                                    <span className="contact-name">wuya51</span>
-                                    <span className="contact-address">0xfe60...f959</span>
+                                    <span className={`${TEXT_STYLES.body} font-medium`}>wuya51</span>
+                                    <span className="text-xs text-gray-600 font-mono ml-auto">{formatAddressForDisplay(import.meta.env.VITE_WHITELIST_ADDRESS, appState.ui.isMobile)}</span>
                                   </div>
                                   <div 
-                                    className="contact-item"
+                                    className="flex items-center p-2.5 px-3 cursor-pointer transition-all duration-200 gap-2.5 rounded-md mx-1 hover:bg-gray-100 hover:translate-x-0.5 active:translate-x-0"
                                     onClick={() => {
                                       const gmicAddress = import.meta.env.VITE_APP_ID;
 
@@ -2784,17 +2848,16 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                                       setRecipientAddress(formatAccountOwner(gmicAddress));
                                       setCurrentChatPartner(formatAccountOwner(gmicAddress));
                                       setShowContactList(false);
-
                                     }}
                                   >
-                                    <span className="contact-avatar">🤖</span>
-                                    <span className="contact-name">GMIC</span>
-                                    <span className="contact-address">{formatAddressForDisplay(formatAccountOwner(import.meta.env.VITE_APP_ID), isMobile, 6, 4)}</span>
+                                    <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm">🤖</span>
+                                    <span className={`${TEXT_STYLES.body} font-medium`}>GMIC</span>
+                                    <span className="text-xs text-gray-600 font-mono ml-auto">{formatAddressForDisplay(formatAccountOwner(import.meta.env.VITE_APP_ID), appState.ui.isMobile, 6, 4)}</span>
                                   </div>
-                                  <div className="contact-item set-recipient-input">
+                                  <div className="flex flex-col p-3 gap-2">
                                     <input
                                       type="text"
-                                      className={`contact-address-input ${newRecipientValidationError ? 'error' : ''}`}
+                                      className={`${INPUT_STYLES.base} ${newRecipientValidationError ? INPUT_STYLES.error : ''}`}
                                       placeholder="Enter recipient address (0x...)"
                                       value={newRecipientAddress}
                                       onChange={(e) => {
@@ -2813,11 +2876,13 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                                           }
                                         }
                                       }}
+                                      onClick={(e) => e.stopPropagation()}
                                       autoFocus
                                     />
                                     <button 
-                                      className={`confirm-contact-button ${newRecipientValidationError ? 'disabled' : ''}`}
-                                      onClick={() => {
+                                      className={`${BUTTON_STYLES.primary} w-full p-2 px-4 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 ${newRecipientValidationError ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         if (gmOps && gmOps.validateRecipientAddress) {
                                           const validation = gmOps.validateRecipientAddress(newRecipientAddress);
                                           if (!validation.isValid) {
@@ -2846,7 +2911,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                                       Set Recipient
                                     </button>
                                     {newRecipientValidationError && (
-                                      <div className="address-validation-error">
+                                      <div className="text-xs text-red-500 mt-1">
                                         {newRecipientValidationError}
                                       </div>
                                     )}
@@ -2858,10 +2923,10 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                         </div>
                       )}
                       
-                      <div className="message-buttons">
-                        <div className="emoji-gif-buttons">
+                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                        <div className="flex flex-col gap-1 mr-2">
                           <button 
-                            className="emoji-picker-button"
+                            className="relative bg-gradient-to-br from-[#ff6b6b] to-[#ffa726] border-none text-xs font-semibold p-1 w-6 h-6 flex items-center justify-center rounded-full transition-all duration-300 hover:bg-gradient-to-br hover:from-[#ff5252] hover:to-[#ff9800] hover:scale-130 hover:rotate-360 hover:shadow-lg hover:shadow-[rgba(255,107,107,0.5)] disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:transform-none disabled:hover:shadow-none"
                             onClick={() => {
                               setShowEmojiPicker(!showEmojiPicker);
                               setShowGifPicker(false);
@@ -2873,7 +2938,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
                           </button>
                           
                           <button 
-                            className="gif-picker-button"
+                            className="relative bg-gradient-to-br from-[#4CAF50] to-[#45a049] border-none text-xs font-semibold p-1 w-6 h-6 flex items-center justify-center rounded-full transition-all duration-300 hover:bg-gradient-to-br hover:from-[#43A047] hover:to-[#388E3C] hover:scale-130 hover:rotate-360 hover:shadow-lg hover:shadow-[rgba(76,175,80,0.5)] disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:transform-none disabled:hover:shadow-none"
                             onClick={() => {
                               if (!isSendingMessage) {
                                 setShowGifPicker(!showGifPicker);
@@ -2889,7 +2954,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
               
                         {!showGifPicker && (
                           <button 
-                            className="send-message-button send-mode"
+                            className={`${CHAT_STYLES.button}`}
                             onClick={() => {
                               if (!isSendingMessage) {
                                 handleSendGM("text");
@@ -2917,10 +2982,10 @@ function App({ chainId, appId, ownerId, inviter, port }) {
             )}
 
             {activeTab === 'leaderboards' && (
-              <div className="leaderboards-container">
+              <div className={`${CARD_STYLES.base} border border-[rgba(255,42,0,0.15)] p-4 transition-all duration-300 hover:shadow-md`}>
                 <Leaderboard
                   currentAccount={currentAccount}
-                  isMobile={isMobile}
+                  isMobile={appState.ui.isMobile}
                   copyToClipboard={copyToClipboard}
                 />
               </div>
@@ -2946,15 +3011,15 @@ function App({ chainId, appId, ownerId, inviter, port }) {
 
         
         {showVoicePopup && (
-          <div className={`voice-recording-popup ${voicePopupType}`}>
-            <div className="voice-recording-icon">
-              {voicePopupType === 'recording' ? '🎤' : 
+          <div className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-full shadow-lg z-50 flex flex-col items-center gap-1 max-w-xs w-auto transition-all duration-300 ease-in-out`}>
+            <div className={`${voicePopupType === 'recording' ? 'text-blue-400' : voicePopupType === 'error' ? 'text-red-400' : voicePopupType === 'success' ? 'text-green-400' : 'text-blue-400'}`}>
+              {voicePopupType === 'recording' ? <VoiceIcon className="w-6 h-6" /> : 
                voicePopupType === 'error' ? '❌' : 
-               voicePopupType === 'success' ? '✅' : '🎤'}
+               voicePopupType === 'success' ? '✅' : <VoiceIcon className="w-6 h-6" />}
             </div>
-            <div className="voice-recording-text">{voicePopupText}</div>
+            <div className="text-xs font-medium whitespace-nowrap">{voicePopupText}</div>
             {voicePopupType === 'recording' && (
-              <div className="voice-recording-time">
+              <div className="text-xs text-gray-300 whitespace-nowrap">
                 {recordingTime.toFixed(1)}s
               </div>
             )}
@@ -2971,79 +3036,7 @@ function App({ chainId, appId, ownerId, inviter, port }) {
         chainId={chainId}
       />
       
-      {showProfileSettings && (
-        <div className="profile-settings-modal">
-          <div className="profile-settings-content">
-            <div className="profile-settings-header">
-              <h3>Edit Profile</h3>
-              <button 
-                className="close-modal-btn"
-                onClick={() => setShowProfileSettings(false)}
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="avatar-upload-section">
-              <div className="avatar-preview">
-                {avatarPreview ? (
-                  <img src={avatarPreview} alt="Avatar Preview" className="avatar-image" />
-                ) : (
-                  <div className="avatar-placeholder">
-                    {editUsername ? editUsername.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                )}
-              </div>
-              
-              <div className="avatar-upload-controls">
-                <input
-                  type="file"
-                  id="avatar-upload"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={handleAvatarFileSelect}
-                />
-                <label htmlFor="avatar-upload" className="upload-avatar-btn">
-                  Choose Avatar
-                </label>
-                {selectedAvatarFile && (
-                  <span className="selected-file-name">
-                    {selectedAvatarFile.name}
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            <div className="username-input-section">
-              <label htmlFor="username-input">Username</label>
-              <input
-                id="username-input"
-                type="text"
-                placeholder="Enter your username"
-                value={editUsername}
-                onChange={(e) => setEditUsername(e.target.value)}
-                maxLength={20}
-              />
-            </div>
-            
-            <div className="profile-settings-actions">
-              <button 
-                className="save-profile-btn"
-                onClick={handleSaveProfile}
-                disabled={uploading || !editUsername.trim()}
-              >
-                {uploading ? 'Uploading...' : 'Save Profile'}
-              </button>
-              <button 
-                className="cancel-profile-btn"
-                onClick={handleCancelProfileEdit}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </ErrorBoundary>
   );
 }

@@ -34,12 +34,15 @@ A decentralized Microchains social messaging application built on Linera GMicroc
 **Frontend**: React + Vite with Tailwind CSS
 **Storage**: On-chain state + IPFS for large files
 **State Management**: Linera Views (MapView, RegisterView)
+**Logging**: Minimal logging (all logging code removed for production)
 
 ### System Components
 - **UI Layer**: Message composition, user profiles, leaderboards
-- **GraphQL API**: Queries, mutations, and real-time subscriptions
-- **Smart Contract**: Message handling and state management
+- **GraphQL API**: Queries (data retrieval) and mutations (transaction hashes only)
+- **Smart Contract**: Message handling and state management with proper Service/Contract separation
 - **Storage**: On-chain data + IPFS for media files
+- **Permission System**: Whitelist-based admin operations
+- **Cooldown System**: 24-hour limit with whitelist bypass
 
 ## ✨ Features
 
@@ -48,6 +51,7 @@ A decentralized Microchains social messaging application built on Linera GMicroc
 - **Cross-chain**: Send messages across Linera chains
 - **Security**: Content validation and XSS protection
 - **Cooldown**: 24-hour limit with whitelist bypass
+- **Signature Verification**: Secure message signing and validation
 
 ### User Profiles
 - **Customization**: Usernames and avatar uploads
@@ -58,6 +62,8 @@ A decentralized Microchains social messaging application built on Linera GMicroc
 - **Invitation System**: Referral rewards and tracking
 - **Real-time Updates**: Live message synchronization
 - **Message History**: Organized conversation view
+- **Admin Controls**: Whitelist management and cooldown toggle
+- **Statistics**: Hourly, daily, and monthly message statistics
 
 ### Frontend
 - **Responsive Design**: Mobile-optimized interface
@@ -80,15 +86,32 @@ gmic-buildathon/
 │   │   │   ├── EmojiPicker.js    # Emoji selection
 │   │   │   ├── GifPicker.js      # GIF selection
 │   │   │   └── UserProfile.js    # User profile management
+│   │   ├── pages/                # Page components
+│   │   │   ├── Leaderboard.js    # Leaderboard page
+│   │   │   ├── NotificationCenter.js # Notification system
+│   │   │   └── index.js          # Pages index
+│   │   ├── services/             # Service layer
+│   │   │   ├── GMOperations.js   # GraphQL operations
+│   │   │   ├── wallet/           # Wallet services
+│   │   │   │   ├── dynamic-signer.ts
+│   │   │   │   ├── linera-adapter.ts
+│   │   │   │   └── index.ts
+│   │   │   └── index.js          # Services index
+│   │   ├── utils/                # Utility functions
+│   │   │   ├── queries.js        # GraphQL queries
+│   │   │   ├── styles.js         # Style utilities
+│   │   │   ├── utils.js          # General utilities
+│   │   │   └── index.js          # Utils index
+│   │   ├── providers/            # React providers
+│   │   │   ├── WalletProvider.js # Wallet integration
+│   │   │   ├── GraphQLProvider.js # GraphQL client setup
+│   │   │   └── index.js          # Providers index
+│   │   ├── hooks/                # Custom React hooks
+│   │   │   └── index.js          # Hooks index
 │   │   ├── App.js                # Main application component
 │   │   ├── App.css               # Application styles
-│   │   ├── GMOperations.js       # GraphQL operations
-│   │   ├── Leaderboard.js        # Leaderboard component
-│   │   ├── NotificationCenter.js # Notification system
-│   │   ├── WalletProvider.js     # Wallet integration
-│   │   ├── GraphQLProvider.js    # GraphQL client setup
-│   │   ├── queries.js            # GraphQL queries
-│   │   └── index.js              # Application entry point
+│   │   ├── index.js              # Application entry point
+│   │   └── index.css             # Global styles
 │   ├── public/                   # Static assets
 │   │   ├── GMic.png              # Application logo
 │   │   ├── favicon.ico           # Favicon
@@ -159,6 +182,7 @@ Create a `.env` file in `web-frontend/` with the following variables:
 VITE_CHAIN_ID=your_chain_id
 VITE_APP_ID=your_app_id
 VITE_OWNER_ID=your_owner_id
+VITE_WHITELIST_ADDRESS=0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959
 VITE_PORT=8080
 VITE_HOST=localhost
 
@@ -178,17 +202,22 @@ VITE_PINATA_SECRET_API_KEY=your_pinata_secret_api_key
 
 ### Cooldown Whitelist
 
-To bypass the 24-hour cooldown for specific addresses, modify `src/state.rs`:
+The application includes a hardcoded whitelist address that is automatically added to the cooldown whitelist when the contract owner is set:
 
-```rust
-// In src/state.rs, around line 66
-let default_whitelist_address: AccountOwner = "YOUR_ADDRESS_HERE"
-    .to_lowercase()
-    .parse()
-    .map_err(|_| ViewError::NotFound("Failed to parse default whitelist address".to_string()))?;
+**Hardcoded Whitelist Address**: `0xfe609ad118ba733dafb3ce2b6094c86a441b10de4ffd1651251fffe973efd959`
+
+This address is defined in `src/state.rs` and is automatically added to the whitelist along with the contract owner when the application is initialized.
+
+To bypass the 24-hour cooldown for additional addresses, configure the environment variable:
+
+```bash
+# In web-frontend/.env file
+VITE_WHITELIST_ADDRESS=your_wallet_address_here
 ```
 
-Replace `YOUR_ADDRESS_HERE` with your wallet address.
+Replace `your_wallet_address_here` with your wallet address. The address will be automatically configured for both frontend and backend.
+
+**Note**: The `run.bash` script automatically sets this environment variable during deployment.
 
 ### Predefined Contacts
 
@@ -252,10 +281,26 @@ query GetUserProfile($user: AccountOwner!) {
 ```graphql
 query CheckCooldown($user: AccountOwner!) {
   checkCooldownStatus(user: $user) {
-    in_cooldown
-    remaining_time
+    inCooldown
+    remainingTime
     enabled
   }
+}
+```
+
+#### Get Cooldown Status
+```graphql
+query GetCooldownStatus {
+  getCooldownStatus {
+    enabled
+  }
+}
+```
+
+#### Check User Whitelist Status
+```graphql
+query IsUserWhitelisted($user: AccountOwner!) {
+  isUserWhitelisted(user: $user)
 }
 ```
 
@@ -274,11 +319,7 @@ mutation SendGm(
     recipient: $recipient
     content: $content
     signature: $signature
-  ) {
-    success
-    message
-    timestamp
-  }
+  )
 }
 ```
 
@@ -286,27 +327,58 @@ mutation SendGm(
 ```graphql
 mutation SetUserProfile(
   $user: AccountOwner!
-  $name: String
-  $avatar: String
+  $profile: UserProfileInput!
 ) {
   setUserProfile(
     user: $user
-    name: $name
-    avatar: $avatar
-  ) {
-    success
-    message
-  }
+    profile: $profile
+  )
+}
+```
+
+#### Set Cooldown Enabled
+```graphql
+mutation SetCooldownEnabled(
+  $caller: AccountOwner!
+  $enabled: Boolean!
+) {
+  setCooldownEnabled(
+    caller: $caller
+    enabled: $enabled
+  )
+}
+```
+
+#### Add Whitelist Address
+```graphql
+mutation AddWhitelistAddress(
+  $caller: AccountOwner!
+  $address: AccountOwner!
+) {
+  addWhitelistAddress(
+    caller: $caller
+    address: $address
+  )
+}
+```
+
+#### Remove Whitelist Address
+```graphql
+mutation RemoveWhitelistAddress(
+  $caller: AccountOwner!
+  $address: AccountOwner!
+) {
+  removeWhitelistAddress(
+    caller: $caller
+    address: $address
+  )
 }
 ```
 
 #### Claim Invitation Rewards
 ```graphql
 mutation ClaimRewards($sender: AccountOwner!) {
-  claimInvitationRewards(sender: $sender) {
-    success
-    message
-  }
+  claimInvitationRewards(sender: $sender)
 }
 ```
 
@@ -449,28 +521,25 @@ cargo test
 
 **Issue**: Cooldown not working as expected
 - **Solution**:
-  - Verify cooldown is enabled in contract
-  - Check if address is whitelisted
+  - Verify cooldown is enabled using `GET_COOLDOWN_STATUS` query
+  - Check if address is whitelisted using `IS_USER_WHITELISTED` query
   - Verify system time is correct
-  - Check cooldown duration setting
+  - Check cooldown duration setting (24 hours)
 
 **Issue**: Want to bypass cooldown
 - **Solution**:
-  - Add your address to whitelist in `src/state.rs`
-  - Republish the contract
-  - Or disable cooldown system entirely
+  - Use `ADD_WHITELIST_ADDRESS` mutation to add address to whitelist
+  - Must be called by contract owner
+  - Or disable cooldown system using `SET_COOLDOWN_ENABLED` mutation
 
 ### Debug Mode
 
-Enable detailed logging by modifying `web-frontend/src/App.js`:
+**Note**: All logging code has been removed from the application for production use. For debugging:
 
-```javascript
-// Comment out this line to enable all console logs
-// const PRODUCTION_LOGS_ONLY = true;
-
-// Or set to false to show all logs
-const PRODUCTION_LOGS_ONLY = false;
-```
+- Check browser console for frontend errors
+- Monitor network requests in browser developer tools
+- Use GraphQL queries to verify state changes
+- Check transaction hashes for on-chain confirmation
 
 ### Log Files
 
@@ -489,10 +558,13 @@ tail -f frontend.log
 
 #### State Management
 
-The contract uses Linera's View system for efficient state management:
+The contract uses Linera's View system for efficient state management with proper Service/Contract separation:
 
-- **MapView**: Key-value storage for indexed data
-  - `last_gm`: Last GM timestamp per user
+- **Service Layer**: GraphQL API, permission validation, operation scheduling
+- **Contract Layer**: State modification, persistence, and event emission
+
+**MapView**: Key-value storage for indexed data
+  - `last_gm`: Last GM timestamp per user (chain-specific)
   - `events`: All GM events
   - `user_events`: User-specific events
   - `received_events`: Events received by user
@@ -500,8 +572,11 @@ The contract uses Linera's View system for efficient state management:
   - `invitations`: Invitation records
   - `invitation_stats`: Invitation statistics
   - `cooldown_whitelist`: Cooldown bypass addresses
+  - `hourly_stats`: Hourly message statistics
+  - `daily_stats`: Daily message statistics
+  - `monthly_stats`: Monthly message statistics
 
-- **RegisterView**: Single-value storage
+**RegisterView**: Single-value storage
   - `owner`: Application owner
   - `total_messages`: Global message count
   - `cooldown_enabled`: Cooldown system toggle
@@ -509,14 +584,15 @@ The contract uses Linera's View system for efficient state management:
 #### Message Flow
 
 1. **User Action**: User sends message from frontend
-2. **Validation**: Frontend validates message content
+2. **Validation**: Frontend validates message content and cooldown status
 3. **Signature**: User signs message with wallet
-4. **Mutation**: GraphQL mutation sends to contract
-5. **Execution**: Contract executes `GmOperation`
-6. **State Update**: Contract updates on-chain state
-7. **Event Emission**: Contract emits event to stream
-8. **Subscription**: Frontend receives update via subscription
-9. **UI Update**: Frontend updates message list
+4. **Mutation**: GraphQL mutation sends to contract (returns transaction hash)
+5. **Service**: Service validates permissions and schedules operation
+6. **Contract**: Contract executes `GmOperation` and updates state
+7. **Persistence**: Contract saves state changes to storage
+8. **Event Emission**: Contract emits event to stream
+9. **Query Verification**: Frontend uses queries to verify state changes
+10. **UI Update**: Frontend updates message list and status
 
 #### Security Measures
 
@@ -525,7 +601,11 @@ The contract uses Linera's View system for efficient state management:
 - **Sensitive Word Filter**: Block inappropriate content
 - **URL Validation**: Ensure HTTPS for external links
 - **Self-Messaging Block**: Prevent sending to self
-- **Cooldown System**: Rate limiting for message sending
+- **Cooldown System**: 24-hour rate limiting for message sending
+- **Permission System**: Whitelist-based admin operations
+- **Signature Verification**: Secure message signing and validation
+- **State Persistence**: Proper state saving after modifications
+- **Error Handling**: Consistent mutation response format (transaction hashes only)
 
 ### Frontend Architecture
 

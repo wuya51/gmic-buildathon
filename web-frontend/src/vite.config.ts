@@ -13,16 +13,12 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
-    // 禁用HMR以解决连接卡住问题
     hmr: false,
-    // 禁用文件系统监听
     watch: {
       usePolling: false,
       ignored: ['**/node_modules/**', '**/.git/**']
     },
-    // 设置更长的超时时间
     middlewareMode: false,
-    // 禁用预构建
     preTransformRequests: false,
     // Cross-Origin Isolation headers for Linera WASM performance and Dynamic auth iframes
     headers: {

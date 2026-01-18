@@ -61,7 +61,9 @@ impl ServiceAbi for GmAbi {
 pub enum GmOperation {
     Gm { sender: AccountOwner, recipient: AccountOwner, content: MessageContent, inviter: Option<AccountOwner> },
     ClaimInvitationRewards { sender: AccountOwner },
-    SetCooldownEnabled { enabled: bool },
+    SetCooldownEnabled { caller: AccountOwner, enabled: bool },
+    AddWhitelistAddress { caller: AccountOwner, address: AccountOwner },
+    RemoveWhitelistAddress { caller: AccountOwner, address: AccountOwner },
     SetUserProfile { user: AccountOwner, name: Option<String>, avatar: Option<String> },
     AIChat { sender: AccountOwner, recipient: AccountOwner, prompt: String, max_tokens: Option<u32> },
 }

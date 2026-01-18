@@ -86,11 +86,7 @@ pub struct UserProfileInput {
     pub avatar: Option<String>,
 }
 
-#[derive(SimpleObject)]
-struct SetUserProfileResult {
-    success: bool,
-    message: String,
-}
+
 
 #[derive(SimpleObject)]
 pub struct SignatureVerificationResult {
@@ -112,12 +108,7 @@ pub struct GmEvent {
     pub content: MessageContent,
 }
 
-#[derive(SimpleObject)]
-struct SendGmResponse {
-    success: bool,
-    message: String,
-    timestamp: u64,
-}
+
 
 #[derive(SimpleObject)]
 struct CooldownStatus {
@@ -131,11 +122,9 @@ struct CooldownCheckResult {
     enabled: bool,
 }
 
-#[derive(SimpleObject)]
-struct WhitelistOperationResult {
-    success: bool,
-    message: String,
-}
+
+
+
 
 #[derive(SimpleObject)]
 struct TimeStat {
@@ -711,7 +700,7 @@ impl MutationRoot {
         recipient: Option<AccountOwner>,
         content: MessageContent,
         inviter: Option<AccountOwner>,
-    ) -> Result<SendGmResponse, async_graphql::Error> {
+    ) -> Result<String, async_graphql::Error> {
         self.send_gm_with_signature(_ctx, chain_id, sender, recipient, "".to_string(), 0, content, inviter).await
     }
     
@@ -725,7 +714,7 @@ impl MutationRoot {
         nonce: u64,
         content: MessageContent,
         inviter: Option<AccountOwner>,
-    ) -> Result<SendGmResponse, async_graphql::Error> {
+    ) -> Result<String, async_graphql::Error> {
         let current_chain_id = self.runtime.chain_id();
         
         if !signature.is_empty() {
@@ -745,24 +734,16 @@ impl MutationRoot {
             let verification_result = service.simple_verify_signature(&signature_data, &signature)?;
             
             if !verification_result.success {
-                return Ok(SendGmResponse {
-                    success: false,
-                    message: format!("Signature verification failed: {}", verification_result.message),
-                    timestamp: 0,
-                });
+                return Err(async_graphql::Error::new(format!("Signature verification failed: {}", verification_result.message)));
             }
         }
         
         let state = self.state.lock().await;
-            let owner = {
+        let owner = {
             match state.owner.get() {
                 Some(owner) => owner.clone(),
                 None => {
-                    return Ok(SendGmResponse {
-                        success: false,
-                        message: "Contract owner not initialized".to_string(),
-                        timestamp: 0,
-                    });
+                    return Err(async_graphql::Error::new("Contract owner not initialized"));
                 }
             }
         };
@@ -797,27 +778,15 @@ impl MutationRoot {
     if chain_id != current_chain_id {
         drop(state);
         self.runtime.schedule_operation(&operation);
-        return Ok(SendGmResponse {
-            success: true,
-            message: format!("Cross-chain GM sent successfully, sender: {}, recipient: {}, chain ID: {}", 
-                sender, 
-                recipient,
-                chain_id),
-            timestamp: self.runtime.system_time().micros(),
-        });
+        let hash = format!("gm_crosschain_{}_{}_{}", sender, recipient, chain_id);
+        return Ok(hash);
     }
     
     drop(state);
     self.runtime.schedule_operation(&operation);
     let block_height = self.runtime.next_block_height();
-    Ok(SendGmResponse {
-        success: true,
-        message: format!("GM recorded successfully, sender: {}, recipient: {}, block height: {}", 
-            sender,
-            recipient.to_string(),
-            block_height),
-        timestamp: self.runtime.system_time().micros(),
-    })
+    let hash = format!("gm_{}_{}_{}", sender, recipient, block_height);
+    Ok(hash)
     }  
     
     async fn set_cooldown_enabled(
@@ -825,23 +794,22 @@ impl MutationRoot {
         _ctx: &async_graphql::Context<'_>,
         caller: AccountOwner,
         enabled: bool,
-    ) -> Result<WhitelistOperationResult, async_graphql::Error> {
-        let mut state = self.state.lock().await;
-        let success = state.set_cooldown_enabled(&caller, enabled).await?;
+    ) -> Result<String, async_graphql::Error> {
+        let state = self.state.lock().await;
+        let is_whitelisted = state.is_whitelisted(&caller).await?;
         
-        if success {
-            let operation = GmOperation::SetCooldownEnabled { enabled };
+        if is_whitelisted {
+            let operation = GmOperation::SetCooldownEnabled { 
+                caller: caller.clone(), 
+                enabled 
+            };
             self.runtime.schedule_operation(&operation);
             
-            Ok(WhitelistOperationResult {
-                success: true,
-                message: format!("24-hour limit switch has been {}, caller={}", if enabled { "enabled" } else { "disabled" }, caller),
-            })
+            let hash = format!("cooldown_set_{}_{}", caller, enabled);
+            Ok(hash)
         } else {
-            Ok(WhitelistOperationResult {
-                success: false,
-                message: format!("Insufficient permissions: only whitelist addresses can set the 24-hour limit switch, caller={}", caller),
-            })
+            let hash = format!("cooldown_set_failed_{}_{}", caller, enabled);
+            Ok(hash)
         }
     }
     
@@ -850,20 +818,21 @@ impl MutationRoot {
         _ctx: &async_graphql::Context<'_>,
         caller: AccountOwner,
         address: AccountOwner,
-    ) -> Result<WhitelistOperationResult, async_graphql::Error> {
-        let mut state = self.state.lock().await;
-        let success = state.add_whitelist(&caller, address).await?;
+    ) -> Result<String, async_graphql::Error> {
+        let state = self.state.lock().await;
+        let is_whitelisted = state.is_whitelisted(&caller).await?;
         
-        if success {
-            Ok(WhitelistOperationResult {
-                success: true,
-                message: format!("Whitelist address added successfully, caller={}", caller),
-            })
+        if is_whitelisted {
+            let operation = GmOperation::AddWhitelistAddress { 
+                caller: caller.clone(), 
+                address: address.clone() 
+            };
+            self.runtime.schedule_operation(&operation);
+            
+            let hash = format!("whitelist_add_{}_{}", caller, address);
+            Ok(hash)
         } else {
-            Ok(WhitelistOperationResult {
-                success: false,
-                message: format!("Insufficient permissions: only whitelist addresses can add to the whitelist, caller={}", caller),
-            })
+            return Err(async_graphql::Error::new(format!("Insufficient permissions: only whitelist addresses can add to the whitelist, caller={}", caller)));
         }
     }
     
@@ -872,22 +841,16 @@ impl MutationRoot {
         _ctx: &async_graphql::Context<'_>,
         user: AccountOwner,
         profile: UserProfileInput,
-    ) -> Result<SetUserProfileResult, async_graphql::Error> {
+    ) -> Result<String, async_graphql::Error> {
         if let Some(name) = &profile.name {
             if name.len() > 50 {
-                return Ok(SetUserProfileResult {
-                    success: false,
-                    message: "Name too long, maximum 50 characters".to_string(),
-                });
+                return Err(async_graphql::Error::new("Name too long, maximum 50 characters"));
             }
         }
         
         if let Some(avatar) = &profile.avatar {
             if !avatar.starts_with("http://") && !avatar.starts_with("https://") {
-                return Ok(SetUserProfileResult {
-                    success: false,
-                    message: "Avatar must be a valid HTTP or HTTPS URL".to_string(),
-                });
+                return Err(async_graphql::Error::new("Avatar must be a valid HTTP or HTTPS URL"));
             }
         }
         
@@ -899,10 +862,8 @@ impl MutationRoot {
         
         self.runtime.schedule_operation(&operation);
         
-        Ok(SetUserProfileResult {
-            success: true,
-            message: "Profile update scheduled successfully".to_string(),
-        })
+        let hash = format!("profile_update_{}", user);
+        Ok(hash)
     }
     
     async fn remove_whitelist_address(
@@ -910,20 +871,21 @@ impl MutationRoot {
         _ctx: &async_graphql::Context<'_>,
         caller: AccountOwner,
         address: AccountOwner,
-    ) -> Result<WhitelistOperationResult, async_graphql::Error> {
-        let mut state = self.state.lock().await;
-        let success = state.remove_whitelist(&caller, address).await?;
+    ) -> Result<String, async_graphql::Error> {
+        let state = self.state.lock().await;
+        let is_whitelisted = state.is_whitelisted(&caller).await?;
         
-        if success {
-            Ok(WhitelistOperationResult {
-                success: true,
-                message: format!("Whitelist address removed successfully, caller={}", caller),
-            })
+        if is_whitelisted {
+            let operation = GmOperation::RemoveWhitelistAddress { 
+                caller: caller.clone(), 
+                address: address.clone() 
+            };
+            self.runtime.schedule_operation(&operation);
+            
+            let hash = format!("whitelist_remove_{}_{}", caller, address);
+            Ok(hash)
         } else {
-            Ok(WhitelistOperationResult {
-                success: false,
-                message: format!("Insufficient permissions: only whitelist addresses can remove from the whitelist, caller={}", caller),
-            })
+            return Err(async_graphql::Error::new(format!("Insufficient permissions: only whitelist addresses can remove from the whitelist, caller={}", caller)));
         }
     }
     
