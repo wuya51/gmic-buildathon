@@ -102,6 +102,20 @@ class ErrorBoundary extends React.Component {
 }
 
 function App({ chainId, appId, ownerId, inviter, port }) {
+  useEffect(() => {
+    if (typeof window.hideLoadingOverlay === 'function') {
+      window.hideLoadingOverlay();
+    } else {
+      const loadingOverlay = document.getElementById('app-loading');
+      if (loadingOverlay) {
+        loadingOverlay.classList.add('fade-out');
+        setTimeout(() => {
+          loadingOverlay.remove();
+        }, 800);
+      }
+    }
+  }, []);
+
   const appRenderCountRef = useRef(0);
   appRenderCountRef.current += 1;
   

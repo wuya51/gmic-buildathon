@@ -16,6 +16,7 @@ A decentralized Microchains social messaging application built on Linera GMicroc
 
 ## 📋 Table of Contents
 
+- [Installation](#installation)
 - [Architecture](#architecture)
 - [Features](#features)
 - [Project Structure](#project-structure)
@@ -25,6 +26,34 @@ A decentralized Microchains social messaging application built on Linera GMicroc
 - [Development Guide](#development-guide)
 - [Troubleshooting](#troubleshooting)
 - [Technical Details](#technical-details)
+
+## Installation
+
+**Note**: This project does not use Docker. The application runs directly on your local machine.
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/wuya51/gmic-buildathon
+   cd gmic-buildathon
+   ```
+
+2. **Make the run script executable**
+   ```bash
+   chmod +x run.bash
+   ```
+
+3. **Run the application**
+   ```bash
+   ./run.bash
+   ```
+
+The script will automatically:
+- Set up the Linera wallet
+- Request a new chain from the faucet
+- Build WASM modules
+- Publish the application
+- Start the backend service (port 8080)
+- Start the frontend (port 3000)
 
 ## 🏗️ Architecture
 
@@ -120,8 +149,6 @@ gmic-buildathon/
 │   ├── vite.config.js            # Vite configuration
 │   └── tailwind.config.js        # Tailwind CSS configuration
 ├── run.bash                      # Setup and run script
-├── compose.yaml                  # Docker Compose (experimental)
-├── Dockerfile                    # Docker configuration
 ├── Cargo.toml                    # Rust dependencies
 └── README.md                     # This file
 ```
@@ -135,32 +162,6 @@ gmic-buildathon/
 - **npm** or **pnpm**: Package manager
 - **Linera SDK**: Installed and configured
 - **Pinata Account**: Free account for IPFS storage
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/wuya51/gmic-buildathon
-   cd gmic-buildathon
-   ```
-
-2. **Make the run script executable**
-   ```bash
-   chmod +x run.bash
-   ```
-
-3. **Run the application**
-   ```bash
-   ./run.bash
-   ```
-
-The script will automatically:
-- Set up the Linera wallet
-- Request a new chain from the faucet
-- Build WASM modules
-- Publish the application
-- Start the backend service (port 8080)
-- Start the frontend (port 3000)
 
 ### Access the Application
 
