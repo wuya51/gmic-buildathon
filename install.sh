@@ -5,15 +5,7 @@ set -eu
 # Get script directory and linera-protocol directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "Script directory: $SCRIPT_DIR"
-
-# Check if running in Docker environment (mounted at /linera-protocol)
-if [ -d "/linera-protocol" ]; then
-    echo "Detected Docker environment"
-    LINERA_DIR="/linera-protocol"
-else
-    # Local environment: calculate path
-    LINERA_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-fi
+LINERA_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 echo "Linera protocol directory: $LINERA_DIR"
 
 # Get application name (current directory name)
@@ -79,52 +71,17 @@ OWNER="${CHAIN_OWNER[1]}"
 # Verification (optional): Display chain information in wallet
 linera wallet show
 
-# In Docker environment, WASM files should be built in workspace target directory
-# Check if WASM files exist in the workspace target directory
-WASM_DIR="$LINERA_DIR/examples/target/wasm32-unknown-unknown/release"
-
-# Debug: Check if WASM files exist
-echo "Checking WASM files..."
-if [ -f "$WASM_DIR/gm_contract.wasm" ] && [ -f "$WASM_DIR/gm_service.wasm" ]; then
-    echo "WASM files found in: $WASM_DIR"
-    echo "Listing all WASM files in the directory:"
-    ls -la "$WASM_DIR/"*.wasm 2>/dev/null || echo "No .wasm files found in $WASM_DIR"
-else
-    # First, search for existing WASM files in common locations
-    echo "Searching for existing WASM files in the project..."
-    find "$LINERA_DIR" -name "*.wasm" -type f 2>/dev/null | head -20
-    
-    # Build WASM files in workspace context
-    echo "Building WASM files in workspace..."
-    cd "$LINERA_DIR/examples"
-    cargo build --release --target wasm32-unknown-unknown
-    
-    # Check where files were actually built
-    echo "Searching for built WASM files..."
-    find "$LINERA_DIR" -name "*.wasm" -type f 2>/dev/null | head -20
-    
-    # Update WASM_DIR based on actual file location
-    ACTUAL_WASM_DIR=$(find "$LINERA_DIR" -name "gm_contract.wasm" -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null)
-    if [ -n "$ACTUAL_WASM_DIR" ]; then
-        echo "Found WASM files in: $ACTUAL_WASM_DIR"
-        WASM_DIR="$ACTUAL_WASM_DIR"
-    else
-        WASM_DIR="$LINERA_DIR/examples/target/wasm32-unknown-unknown/release"
-    fi
-    
-    echo "WASM files built in: $WASM_DIR"
-    echo "Listing all WASM files in the build directory:"
-    ls -la "$WASM_DIR/"*.wasm 2>/dev/null || echo "No .wasm files found in $WASM_DIR"
-fi
+# Switch back to gmic-buildathon directory to build WASM modules
+cd "$SCRIPT_DIR"
+# Use standalone Cargo command to build, avoiding workspace conflicts
+CARGO_MANIFEST_DIR="$SCRIPT_DIR" cargo build --release --target wasm32-unknown-unknown --manifest-path "$SCRIPT_DIR/Cargo.toml"
 
 # Switch back to linera-protocol directory to publish modules
 cd "$LINERA_DIR"
 echo "Current directory: $(pwd)"
 echo "Publishing modules..."
-# Use absolute paths for WASM files
 MODULE_ID=$(linera publish-module \
-    "$LINERA_DIR/examples/target/wasm32-unknown-unknown/release/gm_contract.wasm" \
-    "$LINERA_DIR/examples/target/wasm32-unknown-unknown/release/gm_service.wasm")
+    examples/target/wasm32-unknown-unknown/release/gm_{contract,service}.wasm)
 
 # Create application on specified chain
 APP_ID=$(linera create-application "$MODULE_ID" "$CHAIN")
@@ -153,26 +110,11 @@ echo "Log level: $RUST_LOG"
 
 # Build and run frontend
 cd "$SCRIPT_DIR/web-frontend"
-
-# Load nvm environment for Node.js access
-if [ -f "$HOME/.nvm/nvm.sh" ]; then
-    echo "Loading nvm environment..."
-    source "$HOME/.nvm/nvm.sh"
-    nvm use lts/krypton
-fi
-
 npm install
 # Save frontend logs to file
-# Use Vite server configuration to bind to all network interfaces
-# Use environment variables to force Vite to bind to all interfaces
-BROWSER=none HOST=0.0.0.0 npm run dev -- --port 3000 --host 0.0.0.0 > "$SCRIPT_DIR/frontend.log" 2>&1 &
-
-# Wait for server to start and check binding
-sleep 3
-echo "Checking Vite server binding..."
-docker exec gmic-buildathon-app-1 netstat -tulpn | grep 3000 || echo "Port 3000 not found in netstat"
+BROWSER=none npm run dev > "$SCRIPT_DIR/frontend.log" 2>&1 &
 FRONTEND_PID=$!
-echo "Frontend service started on port 3000, PID: $FRONTEND_PID"
+echo "Frontend service started, PID: $FRONTEND_PID"
 echo "Frontend logs saved to: $SCRIPT_DIR/frontend.log"
 
 # Wait for services to start up
@@ -181,7 +123,7 @@ sleep 5
 # Output access paths
 echo "======================================"
 echo "Services started, access URLs:"
-echo "Frontend URL: http://localhost:5173/$CHAIN?app=$APP_ID&owner=$OWNER&port=8080"
+echo "Frontend URL: http://localhost:3000/$CHAIN?app=$APP_ID&owner=$OWNER&port=8080"
 echo "GraphQL URL: http://localhost:8080/chains/$CHAIN/applications/$APP_ID"
 echo ""
 echo "Log viewing commands:"

@@ -29,7 +29,9 @@ A decentralized Microchains social messaging application built on Linera GMicroc
 
 ## Installation
 
-**Note**: This project does not use Docker. The application runs directly on your local machine.
+This project supports two installation methods: **Direct Installation** and **Docker Installation**.
+
+### Method 1: Direct Installation (Recommended for Development)
 
 1. **Clone the repository**
    ```bash
@@ -37,14 +39,14 @@ A decentralized Microchains social messaging application built on Linera GMicroc
    cd gmic-buildathon
    ```
 
-2. **Make the run script executable**
+2. **Make the install script executable**
    ```bash
-   chmod +x run.bash
+   chmod +x install.sh
    ```
 
-3. **Run the application**
+3. **Install and run the application**
    ```bash
-   ./run.bash
+   ./install.sh
    ```
 
 The script will automatically:
@@ -53,7 +55,50 @@ The script will automatically:
 - Build WASM modules
 - Publish the application
 - Start the backend service (port 8080)
-- Start the frontend (port 3000)
+- Start the frontend (port 5173)
+
+### Method 2: Docker Installation (Recommended for Production)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/wuya51/gmic-buildathon
+   cd gmic-buildathon
+   ```
+
+2. **Build and start Docker containers**
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **Access the application**
+   - Frontend: http://localhost:5173
+   - GraphQL API: http://localhost:8080
+   - Linera Service: http://localhost:9001
+   - Validator: http://localhost:13001
+
+   **Platform-specific Notes:**
+   - **macOS**: ✅ Docker Desktop or native Docker both support localhost access
+   - **Linux (Physical/Virtual Machine)**: ✅ No network isolation, localhost works directly
+   - **Windows + Docker Desktop**: ✅ Built-in proxy handles all port forwarding
+   - **Windows + WSL2 Docker Engine**: ❌ Use WSL2 VM's internal IP instead of localhost:
+     
+     **Step 1: Get WSL2 VM IP address** (run this in WSL2 terminal, not inside container):
+     ```bash
+     hostname -I | awk '{print $1}'
+     # Example output: 172.28.49.113
+     ```
+     
+     **Step 2: Access using WSL2 IP** (in Windows browser):
+     ```
+     http://<WSL2_IP>:5173
+     # Example: http://172.28.49.113:5173
+     ```
+     
+     **Note**: Do not run this command inside Docker container, as it will return container's internal IP, not WSL2 VM IP.
+
+**Docker Compose Services:**
+- `gmic-buildathon`: Main application container
+- Ports: 5173 (frontend), 8080 (GraphQL), 9001 (service), 13001 (validator)
 
 ## 🏗️ Architecture
 

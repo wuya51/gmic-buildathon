@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import fs from 'fs';
+
+// 动态设置 HMR 客户端端口：Docker 中设 VITE_HMR_PORT=5173，本地留空则用默认（3000）
+const hmrClientPort = process.env.VITE_HMR_PORT 
+  ? parseInt(process.env.VITE_HMR_PORT, 10) 
+  : undefined;
 
 export default defineConfig({
   plugins: [react()],
@@ -17,8 +21,13 @@ export default defineConfig({
     allowedHosts: [
       'gmic.top',
       'localhost',
-      '127.0.0.1'
+      '127.0.0.1',
+      'localhost:5173',  
+      '127.0.0.1:5173'
     ],
+    hmr: hmrClientPort 
+      ? { clientPort: hmrClientPort }
+      : true,
     proxy: {
       '/chains': {
         target: 'http://localhost:8080',

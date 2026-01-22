@@ -1,10 +1,12 @@
-services:
-  app:
-    build: .
-    ports:
-    - "5173:5173" # Web app
-    - "8080:8080" # faucet
-    - "9001:9001" # shard proxy
-    - "13001:13001" # shard
-    volumes:
-    - .:/build
+services: 
+  app: 
+    build: . 
+    ports: 
+    - "5173:3000" # Web app 
+    - "8080:8080" # faucet 
+    - "9001:9001" # shard proxy 
+    - "13001:13001" # shard 
+    volumes: 
+    - ../..:/linera-protocol
+    environment:
+    - VITE_HMR_PORT=5173    
